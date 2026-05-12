@@ -44,8 +44,11 @@ kubectl apply -f argocd/apps/root.yaml
   PrometheusRule / Alertmanager CRDs that everything else references)
 - **wave -1** — cert-manager and Gatekeeper (their own CRDs land too;
   cert-manager's ClusterIssuer needs cert-manager pods Ready)
-- **wave 0** — ingress-nginx, Loki, Grafana, Gatekeeper Constraints
-- **wave 1** — tenant namespaces and apps
+- **wave 0** — ingress-nginx, Loki, Grafana, Gatekeeper **ConstraintTemplates**
+- **wave 1** — Gatekeeper **Constraints** (must land after their Template
+  has been registered as a dynamic CRD)
+- **wave 2** — tenant namespaces and apps (Constraints active before
+  any tenant workload deploys)
 
 `argocd.argoproj.io/sync-wave` annotations on each Application drive
 ordering. Within a wave, parallel sync is fine.

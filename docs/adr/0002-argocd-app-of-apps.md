@@ -27,7 +27,9 @@ The "root" Application points at `argocd/apps/`. Argo CD discovers child Applica
 - **wave -3** — platform-namespaces (NS objects with PSS labels; must exist before any chart's PreSync hooks)
 - **wave -2** — kube-prometheus-stack (CRDs everyone else uses)
 - **wave -1** — cert-manager, Gatekeeper
-- **wave 0** — ingress-nginx, Loki, Grafana, Gatekeeper Constraints
+- **wave 0** — ingress-nginx, Loki, Grafana, Gatekeeper ConstraintTemplates
+- **wave 1** — Gatekeeper Constraints (after their Template's dynamic CRD)
+- **wave 2** — tenant namespaces and apps
 - **wave 1** — tenant namespaces and apps
 
 ## Consequences
