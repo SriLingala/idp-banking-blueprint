@@ -41,8 +41,9 @@ It is **not** a tutorial. It is a credible starting point.
 ├── ARCHITECTURE.md                 ← Layered overview + threat model
 ├── docs/
 │   ├── adr/                        ← Architecture Decision Records
-│   ├── runbooks/                   ← On-call procedures (v0.3+)
-│   └── compliance-notes.md         ← SOX / PCI-DSS / ISO 27001 mapping (v1.0)
+│   ├── runbooks/                   ← Tenant onboarding · Incident response
+│   ├── compliance-notes.md         ← SOX / PCI-DSS / ISO 27001 / DORA mapping
+│   └── launch-writeup.md           ← v1.0 launch write-up · trade-offs · what I'd extend next
 ├── modules/                        ← Reusable Terraform modules
 │   ├── gke-hardened/               ← Production-shape GKE cluster (v0.1)
 │   ├── tenant-namespace/           ← Per-tenant Kubernetes namespace (v0.2)
@@ -94,7 +95,7 @@ make onboard-tenant TENANT=acme ENV=dev
 | v0.1 | **Released** | Hardened GKE module · dev env · ADR-0001 · CI |
 | v0.2 | **Released** | Tenant-namespace module · Argo CD bootstrap + app-of-apps · sample tenant Helm chart · Backup for GKE · ADR-0002 |
 | v0.3 | **Released** | Sentinel policies · OPA Gatekeeper templates + constraints · tenant onboarding runbook · Binary Authorization · ADR-0003 |
-| v1.0 | Planned | Compliance notes (SOX/PCI/ISO) · incident runbook · launch write-up |
+| v1.0 | **Released** | Compliance notes (SOX/PCI/ISO/DORA) · incident-response runbook (with Gatekeeper break-glass) · [launch write-up](docs/launch-writeup.md) |
 
 ## Architecture Decision Records
 
