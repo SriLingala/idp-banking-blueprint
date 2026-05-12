@@ -115,6 +115,7 @@ See `variables.tf` for the authoritative list. Required:
 
 ## Changelog
 
+- **v0.3.1** — Widen default maintenance window (Sat+Sun 03:00→11:00 UTC, 16h/week) to satisfy GKE's 48h-per-32-day floor. The previous 4h/day default failed cluster creation with `maintenance policy would go longer than 32d without 48h maintenance availability`.
 - **v0.3** — Binary Authorization: cluster opts in to BinAuthz via `enable_binary_authorization` (default true, `PROJECT_SINGLETON_POLICY_ENFORCE`).
 - **v0.2** — Backup for GKE: in-cluster agent + baseline daily backup plan with CMEK and 35-day retention. Opt out with `enable_backup = false`. Caller must supply `backup_encryption_key` when enabled.
 - **v0.1.2** — Fix `logging_config.enable_components` (`API_SERVER` → `APISERVER`) and move `confidential_nodes` back inside `node_config` on the node pool. Both were `terraform validate` failures.
