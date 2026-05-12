@@ -129,7 +129,7 @@ resource "google_container_cluster" "this" {
     enable_components = [
       "SYSTEM_COMPONENTS",
       "WORKLOADS",
-      "API_SERVER",
+      "APISERVER",
       "SCHEDULER",
       "CONTROLLER_MANAGER",
     ]
@@ -217,14 +217,6 @@ resource "google_container_node_pool" "this" {
     max_unavailable = 0
   }
 
-  # Confidential nodes are configured at the node pool top level.
-  dynamic "confidential_nodes" {
-    for_each = var.enable_confidential_nodes ? [1] : []
-    content {
-      enabled = true
-    }
-  }
-
   node_config {
     machine_type = each.value.machine_type
     disk_size_gb = each.value.disk_size_gb
@@ -238,6 +230,14 @@ resource "google_container_node_pool" "this" {
     oauth_scopes = each.value.oauth_scopes
 
     labels = merge(var.labels, each.value.labels)
+
+    # Confidential nodes are configured under node_config in the node-pool resource.
+    dynamic "confidential_nodes" {
+      for_each = var.enable_confidential_nodes ? [1] : []
+      content {
+        enabled = true
+      }
+    }
 
     dynamic "taint" {
       for_each = each.value.taints
