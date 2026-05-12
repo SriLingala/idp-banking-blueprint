@@ -2,6 +2,11 @@ apiVersion: constraints.gatekeeper.sh/v1beta1
 kind: K8sDisallowHostNetwork
 metadata:
   name: disallow-host-network
+  annotations:
+    # Constraints must apply *after* their ConstraintTemplate has been
+    # registered as a dynamic CRD by Gatekeeper. Templates land at the
+    # default sync-wave (0); these Constraints sit at wave 1.
+    argocd.argoproj.io/sync-wave: "1"
 spec:
   enforcementAction: deny
   match:

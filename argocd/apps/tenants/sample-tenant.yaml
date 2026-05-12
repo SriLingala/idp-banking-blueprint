@@ -13,8 +13,10 @@ metadata:
     platform.idp/scope: tenant
     platform.idp/tenant: sample
   annotations:
-    # Wave 1 — runs after platform addons land.
-    argocd.argoproj.io/sync-wave: "1"
+    # Wave 2 — after platform addons (waves -3 → 0) AND Gatekeeper
+    # Constraints (wave 1, in policies/opa/constraints/). Ensures
+    # admission policies are active before any tenant workload deploys.
+    argocd.argoproj.io/sync-wave: "2"
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:

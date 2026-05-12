@@ -87,3 +87,13 @@ spec:
       selfHeal: true
     syncOptions:
       - ServerSideApply=true
+    # Constraints land at sync-wave 1 (annotated per-file); ConstraintTemplates
+    # at the default wave 0. Even with that staging, there's a brief window
+    # where Gatekeeper has accepted the Template but hasn't yet finished
+    # registering the dynamic Constraint CRD. Retries cover the race.
+    retry:
+      limit: 10
+      backoff:
+        duration: 15s
+        factor: 2
+        maxDuration: 5m
