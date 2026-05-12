@@ -123,9 +123,9 @@ variable "maintenance_start_time" {
 }
 
 variable "maintenance_end_time" {
-  description = "RFC3339 maintenance window end. Default: 07:00 UTC."
+  description = "RFC3339 maintenance window end. Default: 11:00 UTC. The window must satisfy GKE's 48h-per-32-day minimum: 8h × Sat+Sun = 16h/week ≈ 70h/32d, well above the floor. A shorter window (e.g. 03:00-07:00) fails validation."
   type        = string
-  default     = "2026-01-01T07:00:00Z"
+  default     = "2026-01-01T11:00:00Z"
 }
 
 variable "maintenance_recurrence" {
