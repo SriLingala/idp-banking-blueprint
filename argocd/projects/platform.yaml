@@ -37,6 +37,19 @@ spec:
       server: https://kubernetes.default.svc
     - namespace: gatekeeper-system
       server: https://kubernetes.default.svc
+    # kube-system — required by kube-prometheus-stack to create the
+    # scrape-target Services for coreDns and kubelet. The target pods
+    # live in kube-system, so the chart hardcodes the Service namespace
+    # there. Without this entry KPS sync fails with
+    # "namespace kube-system is not permitted in project 'platform'".
+    #
+    # IMPORTANT: this allowlist applies only to the PLATFORM project,
+    # which is owned by platform engineering and trusted with cluster
+    # scope. Tenant AppProjects MUST NOT include kube-system — the
+    # deny-by-default posture for tenants is unchanged. See
+    # argocd/projects/tenant-default.yaml.
+    - namespace: kube-system
+      server: https://kubernetes.default.svc
 
   clusterResourceWhitelist:
     - group: "*"
