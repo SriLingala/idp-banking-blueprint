@@ -24,6 +24,7 @@ Common options:
 
 The "root" Application points at `argocd/apps/`. Argo CD discovers child Applications under `apps/platform/` and `apps/tenants/` and reconciles them in `sync-wave` order:
 
+- **wave -3** — platform-namespaces (NS objects with PSS labels; must exist before any chart's PreSync hooks)
 - **wave -2** — kube-prometheus-stack (CRDs everyone else uses)
 - **wave -1** — cert-manager, Gatekeeper
 - **wave 0** — ingress-nginx, Loki, Grafana, Gatekeeper Constraints

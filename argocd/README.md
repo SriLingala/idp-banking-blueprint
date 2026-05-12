@@ -37,6 +37,9 @@ kubectl apply -f argocd/apps/root.yaml
 
 ## Sync waves
 
+- **wave -3** — platform-namespaces (creates monitoring, logging, cert-manager,
+  ingress-nginx, gatekeeper-system with Pod Security Standards labels;
+  must exist before any chart's PreSync hooks land)
 - **wave -2** — kube-prometheus-stack (installs ServiceMonitor / PodMonitor /
   PrometheusRule / Alertmanager CRDs that everything else references)
 - **wave -1** — cert-manager and Gatekeeper (their own CRDs land too;
