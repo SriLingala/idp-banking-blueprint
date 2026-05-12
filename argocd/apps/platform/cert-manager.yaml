@@ -26,6 +26,13 @@ spec:
           replicaCount: 2
         cainjector:
           replicaCount: 2
+        # By default cert-manager puts its leader-election Role + RoleBinding
+        # into kube-system. Our platform AppProject does not — and should not —
+        # grant write access to kube-system. Move the lease into the
+        # cert-manager namespace, which the project already allows.
+        global:
+          leaderElection:
+            namespace: cert-manager
         resources:
           requests:
             cpu: 10m
@@ -33,6 +40,12 @@ spec:
           limits:
             cpu: 500m
             memory: 256Mi
+        # ServiceMonitor support is enabled but deferred: the
+        # monitoring.coreos.com/ServiceMonitor CRD ships with
+        # kube-prometheus-stack (wave 0). With SkipDryRunOnMissingResource
+        # in syncOptions below, Argo CD skips the SM on first sync (wave
+        # -1, KPS not installed yet) and applies it cleanly on the next
+        # reconciliation after KPS lands.
         prometheus:
           enabled: true
           servicemonitor:
@@ -49,6 +62,10 @@ spec:
     syncOptions:
       - CreateNamespace=true
       - ServerSideApply=true
+      # Tolerate the ServiceMonitor CRD not existing on first sync — it
+      # lands with kube-prometheus-stack in wave 0. Reconciliation after
+      # wave 0 picks it up.
+      - SkipDryRunOnMissingResource=true
     retry:
       limit: 5
       backoff:

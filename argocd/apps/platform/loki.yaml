@@ -72,3 +72,6 @@ spec:
     syncOptions:
       - CreateNamespace=true
       - ServerSideApply=true
+      # ServiceMonitor CRD lands with kube-prometheus-stack in the same
+      # wave; tolerate the race on first sync.
+      - SkipDryRunOnMissingResource=true
