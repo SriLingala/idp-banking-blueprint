@@ -1,0 +1,47 @@
+apiVersion: templates.gatekeeper.sh/v1
+kind: ConstraintTemplate
+metadata:
+  name: k8srestrictedregistries
+  annotations:
+    metadata.gatekeeper.sh/title: "Restrict Container Images to Approved Registries"
+    metadata.gatekeeper.sh/version: "1.0.0"
+    description: >-
+      Container images must come from an approved registry list. Stops
+      `kubectl run nginx --image=docker.io/nginx` from succeeding on the
+      banking estate and forces all images through the platform's signing
+      pipeline. Defence-in-depth with Binary Authorization.
+spec:
+  crd:
+    spec:
+      names:
+        kind: K8sRestrictedRegistries
+      validation:
+        openAPIV3Schema:
+          type: object
+          properties:
+            approvedRegistries:
+              description: Allowed image registry prefixes.
+              type: array
+              items:
+                type: string
+  targets:
+    - target: admission.k8s.gatekeeper.sh
+      rego: |
+        package k8srestrictedregistries
+
+        violation[{"msg": msg}] {
+          container := input.review.object.spec.containers[_]
+          not approved(container.image)
+          msg := sprintf("container '%v' image '%v' is not from an approved registry", [container.name, container.image])
+        }
+
+        violation[{"msg": msg}] {
+          container := input.review.object.spec.initContainers[_]
+          not approved(container.image)
+          msg := sprintf("initContainer '%v' image '%v' is not from an approved registry", [container.name, container.image])
+        }
+
+        approved(image) {
+          some i
+          startswith(image, input.parameters.approvedRegistries[i])
+        }

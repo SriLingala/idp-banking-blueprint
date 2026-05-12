@@ -1,0 +1,37 @@
+apiVersion: templates.gatekeeper.sh/v1
+kind: ConstraintTemplate
+metadata:
+  name: k8srequiretenantlabels
+  annotations:
+    metadata.gatekeeper.sh/title: "Require Tenant Labels on Namespaces"
+    metadata.gatekeeper.sh/version: "1.0.0"
+    description: >-
+      Every namespace must carry platform.idp/tenant and platform.idp/tier.
+      Cost reporting and audit queries pivot off these labels; a missing
+      label breaks chargeback.
+spec:
+  crd:
+    spec:
+      names:
+        kind: K8sRequireTenantLabels
+      validation:
+        openAPIV3Schema:
+          type: object
+          properties:
+            requiredLabels:
+              description: Labels every namespace must carry.
+              type: array
+              items:
+                type: string
+  targets:
+    - target: admission.k8s.gatekeeper.sh
+      rego: |
+        package k8srequiretenantlabels
+
+        violation[{"msg": msg}] {
+          required := input.parameters.requiredLabels[_]
+          not input.review.object.metadata.labels[required]
+          msg := sprintf("namespace '%v' missing required label '%v'", [
+            input.review.object.metadata.name, required,
+          ])
+        }

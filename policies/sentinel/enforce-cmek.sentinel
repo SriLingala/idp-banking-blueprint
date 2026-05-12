@@ -1,0 +1,65 @@
+# enforce-cmek
+#
+# Every google_container_cluster must:
+#   - Have database_encryption.state = ENCRYPTED with a key_name set
+#     (application-layer etcd CMEK).
+#   - Reference a boot disk KMS key on every node_config / node pool.
+#
+# Banking-data clusters cannot rely on Google-managed keys; auditors will
+# ask for the customer-managed key reference and its rotation policy.
+
+import "tfplan/v2" as tfplan
+
+violations = []
+
+clusters = filter tfplan.resource_changes as _, rc {
+    rc.type is "google_container_cluster" and
+    not (rc.change.actions contains "delete" and not (rc.change.actions contains "create"))
+}
+
+for clusters as address, rc {
+    after = rc.change.after else {}
+
+    # Application-layer etcd encryption
+    de = after.database_encryption else []
+    encrypted = false
+    for de as d {
+        if d.state is "ENCRYPTED" and d.key_name is not "" and d.key_name is not null {
+            encrypted = true
+        }
+    }
+    if not encrypted {
+        append(violations, address + ": database_encryption.state must be ENCRYPTED with a key_name")
+    }
+}
+
+# Boot-disk CMEK check on node pools.
+node_pools = filter tfplan.resource_changes as _, rc {
+    rc.type is "google_container_node_pool" and
+    not (rc.change.actions contains "delete" and not (rc.change.actions contains "create"))
+}
+
+for node_pools as address, rc {
+    after = rc.change.after else {}
+    nc = after.node_config else []
+    has_kms = false
+    for nc as n {
+        if n.boot_disk_kms_key is not "" and n.boot_disk_kms_key is not null {
+            has_kms = true
+        }
+    }
+    if not has_kms {
+        append(violations, address + ": node_config.boot_disk_kms_key must be set")
+    }
+}
+
+main = rule {
+    length(violations) is 0
+}
+
+if length(violations) > 0 {
+    print("enforce-cmek: customer-managed encryption keys missing on:")
+    for violations as v {
+        print("  - " + v)
+    }
+}

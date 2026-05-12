@@ -1,0 +1,24 @@
+apiVersion: templates.gatekeeper.sh/v1
+kind: ConstraintTemplate
+metadata:
+  name: k8sdisallowhostnetwork
+  annotations:
+    metadata.gatekeeper.sh/title: "Disallow Host Network"
+    metadata.gatekeeper.sh/version: "1.0.0"
+    description: >-
+      Pods cannot set spec.hostNetwork: true. Host networking bypasses
+      NetworkPolicy and is a common privilege-escalation vector.
+spec:
+  crd:
+    spec:
+      names:
+        kind: K8sDisallowHostNetwork
+  targets:
+    - target: admission.k8s.gatekeeper.sh
+      rego: |
+        package k8sdisallowhostnetwork
+
+        violation[{"msg": msg}] {
+          input.review.object.spec.hostNetwork == true
+          msg := "spec.hostNetwork is not permitted"
+        }

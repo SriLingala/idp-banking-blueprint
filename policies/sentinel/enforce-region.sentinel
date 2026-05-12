@@ -1,0 +1,74 @@
+# enforce-region
+#
+# Every google_* and google-beta_* resource that has a `location` or `region`
+# attribute must be in one of the approved regions. Data residency law for
+# UK & EU banking customers is non-negotiable.
+
+import "tfplan/v2" as tfplan
+import "strings"
+
+approved_regions = [
+    "europe-west2",       # London
+    "europe-west4",       # Netherlands (DR pair)
+    "europe-west2-a",
+    "europe-west2-b",
+    "europe-west2-c",
+    "europe-west4-a",
+    "europe-west4-b",
+    "europe-west4-c",
+]
+
+# Resources we care about. Add to this list when new GCP resource types
+# are introduced.
+resource_types_with_location = [
+    "google_container_cluster",
+    "google_container_node_pool",
+    "google_compute_instance",
+    "google_compute_subnetwork",
+    "google_storage_bucket",
+    "google_sql_database_instance",
+    "google_kms_key_ring",
+    "google_gke_backup_backup_plan",
+]
+
+violations = []
+
+for resource_types_with_location as rt {
+    resources = tfplan.resource_changes else {}
+    for resources as address, rc {
+        if rc.type is not rt {
+            continue
+        }
+        if rc.change.actions contains "delete" and not (rc.change.actions contains "create") {
+            continue
+        }
+        after = rc.change.after else {}
+        location = after.location else after.region else after.zone else ""
+        if location is "" {
+            continue
+        }
+        ok = false
+        for approved_regions as r {
+            if location is r or strings.has_prefix(location, r + "-") {
+                ok = true
+                break
+            }
+        }
+        if not ok {
+            append(violations, address + " is in '" + location + "', not an approved region")
+        }
+    }
+}
+
+main = rule {
+    length(violations) is 0
+}
+
+# When the main rule fails, print all violations so the engineer who hit the
+# gate can fix them in one pass.
+if length(violations) > 0 {
+    print("enforce-region: the following resources are outside approved regions:")
+    for violations as v {
+        print("  - " + v)
+    }
+}

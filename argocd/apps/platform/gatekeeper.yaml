@@ -1,0 +1,89 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: gatekeeper
+  namespace: argocd
+  labels:
+    platform.idp/scope: platform
+  annotations:
+    # Wave -1 — Gatekeeper CRDs and webhook must exist before any
+    # Constraint or ConstraintTemplate is applied.
+    argocd.argoproj.io/sync-wave: "-1"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: platform
+
+  source:
+    repoURL: https://open-policy-agent.github.io/gatekeeper/charts
+    chart: gatekeeper
+    targetRevision: 3.17.1
+    helm:
+      releaseName: gatekeeper
+      values: |
+        replicas: 2
+        audit:
+          replicas: 1
+        validatingWebhookFailurePolicy: Fail   # Default-deny if Gatekeeper is down
+        mutatingWebhookFailurePolicy: Ignore   # Don't deadlock on mutating-webhook outages
+        emitAdmissionEvents: true
+        emitAuditEvents: true
+        logLevel: INFO
+        controllerManager:
+          resources:
+            requests: { cpu: 100m, memory: 256Mi }
+            limits:   { cpu: 1, memory: 512Mi }
+        audit:
+          resources:
+            requests: { cpu: 100m, memory: 256Mi }
+            limits:   { cpu: 1, memory: 1Gi }
+        psp:
+          enabled: false   # PSP retired in K8s 1.25
+        # Constraint templates and constraints are delivered by the
+        # gatekeeper-policies Application below, NOT bundled with the chart.
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: gatekeeper-system
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: gatekeeper-policies
+  namespace: argocd
+  labels:
+    platform.idp/scope: platform
+  annotations:
+    # Wave 0 — after Gatekeeper itself is up.
+    argocd.argoproj.io/sync-wave: "0"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: platform
+
+  source:
+    repoURL: https://github.com/SriLingala/idp-banking-blueprint.git
+    targetRevision: main
+    path: policies/opa
+    directory:
+      recurse: true
+      include: "{templates/*.yaml,constraints/*.yaml}"
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: gatekeeper-system
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - ServerSideApply=true

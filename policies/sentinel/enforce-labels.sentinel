@@ -1,0 +1,42 @@
+# enforce-labels
+#
+# Every GKE cluster must carry the labels finance and audit teams query
+# against: cost-centre, owner, env, sox.
+
+import "tfplan/v2" as tfplan
+
+required_labels = [
+    "env",
+    "owner",
+    "cost-centre",
+    "sox",
+]
+
+violations = []
+
+clusters = filter tfplan.resource_changes as _, rc {
+    rc.type is "google_container_cluster" and
+    not (rc.change.actions contains "delete" and not (rc.change.actions contains "create"))
+}
+
+for clusters as address, rc {
+    after = rc.change.after else {}
+    labels = after.resource_labels else {}
+
+    for required_labels as l {
+        if not (keys(labels) contains l) or labels[l] is "" {
+            append(violations, address + ": resource_labels must include '" + l + "'")
+        }
+    }
+}
+
+main = rule {
+    length(violations) is 0
+}
+
+if length(violations) > 0 {
+    print("enforce-labels: missing audit / finance labels:")
+    for violations as v {
+        print("  - " + v)
+    }
+}

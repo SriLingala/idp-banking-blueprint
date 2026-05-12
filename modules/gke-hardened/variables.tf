@@ -177,3 +177,27 @@ variable "backup_cron_schedule" {
   type        = string
   default     = "0 2 * * *"
 }
+
+###############################################################################
+# Binary Authorization (v0.3)
+###############################################################################
+
+variable "enable_binary_authorization" {
+  description = "Opt the cluster into Binary Authorization. Attestors + policy are managed separately by platform IAM."
+  type        = bool
+  default     = true
+}
+
+variable "binary_authorization_evaluation_mode" {
+  description = "Binary Authorization evaluation mode. PROJECT_SINGLETON_POLICY_ENFORCE is the production default."
+  type        = string
+  default     = "PROJECT_SINGLETON_POLICY_ENFORCE"
+
+  validation {
+    condition = contains(
+      ["DISABLED", "PROJECT_SINGLETON_POLICY_ENFORCE"],
+      var.binary_authorization_evaluation_mode
+    )
+    error_message = "binary_authorization_evaluation_mode must be DISABLED or PROJECT_SINGLETON_POLICY_ENFORCE."
+  }
+}

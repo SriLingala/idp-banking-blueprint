@@ -1,0 +1,55 @@
+# enforce-master-authorized-networks
+#
+# Every GKE cluster must have at least one master_authorized_networks_config
+# entry, and 0.0.0.0/0 is never allowed in that list. We also block
+# 10.0.0.0/8 because it's a common "any internal CIDR" copy-paste mistake
+# that lets the entire shared VPC reach the API.
+
+import "tfplan/v2" as tfplan
+
+blocked_cidrs = [
+    "0.0.0.0/0",
+    "10.0.0.0/8",
+]
+
+violations = []
+
+clusters = filter tfplan.resource_changes as _, rc {
+    rc.type is "google_container_cluster" and
+    not (rc.change.actions contains "delete" and not (rc.change.actions contains "create"))
+}
+
+for clusters as address, rc {
+    after = rc.change.after else {}
+    man = after.master_authorized_networks_config else []
+
+    if length(man) is 0 {
+        append(violations, address + ": master_authorized_networks_config must be set")
+        continue
+    }
+
+    for man as cfg {
+        cidrs = cfg.cidr_blocks else []
+        if length(cidrs) is 0 {
+            append(violations, address + ": master_authorized_networks_config.cidr_blocks must contain at least one entry")
+        }
+        for cidrs as c {
+            for blocked_cidrs as b {
+                if c.cidr_block is b {
+                    append(violations, address + ": cidr_block '" + b + "' is not permitted on the API server")
+                }
+            }
+        }
+    }
+}
+
+main = rule {
+    length(violations) is 0
+}
+
+if length(violations) > 0 {
+    print("enforce-master-authorized-networks: insecure control-plane exposure:")
+    for violations as v {
+        print("  - " + v)
+    }
+}

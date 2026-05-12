@@ -57,7 +57,7 @@ It is **not** a tutorial. It is a credible starting point.
 │   └── sample-tenant-app/          ← What an onboarded team's app looks like (v0.2)
 └── policies/
     ├── sentinel/                   ← Terraform Enterprise policies (v0.3)
-    └── opa/                        ← Gatekeeper / Kyverno admission policies (v0.3)
+    └── opa/                        ← Gatekeeper ConstraintTemplates + Constraints (v0.3)
 ```
 
 In-cluster software (observability, ingress, cert-manager, tenant apps) is **not** a Terraform module — Argo CD owns it via the app-of-apps pattern. See [ADR-0002](docs/adr/0002-argocd-app-of-apps.md).
@@ -93,7 +93,7 @@ make onboard-tenant TENANT=acme ENV=dev
 | --- | --- | --- |
 | v0.1 | **Released** | Hardened GKE module · dev env · ADR-0001 · CI |
 | v0.2 | **Released** | Tenant-namespace module · Argo CD bootstrap + app-of-apps · sample tenant Helm chart · Backup for GKE · ADR-0002 |
-| v0.3 | Planned | Sentinel policies · OPA policies · tenant onboarding runbook · Binary Authorization |
+| v0.3 | **Released** | Sentinel policies · OPA Gatekeeper templates + constraints · tenant onboarding runbook · Binary Authorization · ADR-0003 |
 | v1.0 | Planned | Compliance notes (SOX/PCI/ISO) · incident runbook · launch write-up |
 
 ## Architecture Decision Records
@@ -102,7 +102,7 @@ make onboard-tenant TENANT=acme ENV=dev
 | --- | --- | --- |
 | [0001](docs/adr/0001-multi-tenant-by-namespace.md) | Multi-tenant via namespace, not cluster | Accepted |
 | [0002](docs/adr/0002-argocd-app-of-apps.md) | Argo CD app-of-apps for delivery | Accepted |
-| 0003 | Sentinel + OPA in defence-in-depth | Planned (v0.3) |
+| [0003](docs/adr/0003-sentinel-opa-defence-in-depth.md) | Sentinel + OPA in defence-in-depth | Accepted |
 
 ADRs document the **trade-offs**, not the implementation. Read them first.
 

@@ -49,10 +49,12 @@ This document describes the layered architecture of the platform. For the
 | Public exposure of API server | Private cluster, master authorized networks | `modules/gke-hardened` |
 | Workload using static cloud credentials | Workload Identity binding required | `modules/gke-hardened` + OPA |
 | Privileged container escape | Pod Security Standards `restricted`, shielded nodes | Cluster baseline + OPA |
-| Tenant lateral movement | NetworkPolicy default-deny per namespace | `modules/tenant-namespace` (v0.2) |
-| Drift from approved baseline | Argo CD self-heal + sync waves | `argocd/` (v0.2) |
-| Unreviewed Terraform change | Sentinel policy + mandatory PR approval | `policies/sentinel` (v0.3) |
-| Region drift / data residency | Sentinel deny outside approved regions | `policies/sentinel` (v0.3) |
+| Tenant lateral movement | NetworkPolicy default-deny per namespace | `modules/tenant-namespace` |
+| Drift from approved baseline | Argo CD self-heal + sync waves | `argocd/` |
+| Unreviewed Terraform change | Sentinel policy + mandatory PR approval | `policies/sentinel` |
+| Region drift / data residency | Sentinel deny outside approved regions | `policies/sentinel` |
+| Unattested container image | Binary Authorization + `K8sRestrictedRegistries` | `modules/gke-hardened` + `policies/opa` |
+| Workload bypassing platform admission | Pod Security Standards + Gatekeeper Constraints | `modules/tenant-namespace` + `policies/opa` |
 | Untraceable platform action | All API calls to Cloud Audit Logs → SIEM | GCP-native, configured in `modules/gke-hardened` |
 
 ## What is intentionally not here

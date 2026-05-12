@@ -1,0 +1,30 @@
+apiVersion: constraints.gatekeeper.sh/v1beta1
+kind: K8sRestrictedRegistries
+metadata:
+  name: restricted-registries
+spec:
+  enforcementAction: deny
+  match:
+    kinds:
+      - apiGroups: [""]
+        kinds: ["Pod"]
+    excludedNamespaces:
+      - kube-system
+      - kube-public
+      - kube-node-lease
+      - gatekeeper-system
+  parameters:
+    # Replace these prefixes with your environment's approved registries.
+    # The defaults below cover the in-tree Helm charts shipped by this repo
+    # plus GKE-managed system images.
+    approvedRegistries:
+      - "europe-west2-docker.pkg.dev/"   # Artifact Registry, regional
+      - "gcr.io/gke-release/"
+      - "registry.k8s.io/"
+      - "k8s.gcr.io/"
+      - "quay.io/jetstack/"
+      - "quay.io/prometheus/"
+      - "quay.io/prometheus-operator/"
+      - "grafana/"
+      - "docker.io/grafana/"
+      - "docker.io/nginxinc/nginx-unprivileged"

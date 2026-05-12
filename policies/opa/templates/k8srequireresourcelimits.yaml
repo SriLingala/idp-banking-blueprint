@@ -1,0 +1,66 @@
+apiVersion: templates.gatekeeper.sh/v1
+kind: ConstraintTemplate
+metadata:
+  name: k8srequireresourcelimits
+  annotations:
+    metadata.gatekeeper.sh/title: "Require CPU and Memory Limits"
+    metadata.gatekeeper.sh/version: "1.0.0"
+    description: >-
+      Every container must declare resources.limits.cpu and
+      resources.limits.memory. An unbounded container is the cheapest way to
+      take down a noisy-neighbour-prone shared cluster.
+spec:
+  crd:
+    spec:
+      names:
+        kind: K8sRequireResourceLimits
+      validation:
+        openAPIV3Schema:
+          type: object
+          properties:
+            exemptImages:
+              description: Container image prefixes that bypass the check (e.g. system addons).
+              type: array
+              items:
+                type: string
+  targets:
+    - target: admission.k8s.gatekeeper.sh
+      rego: |
+        package k8srequireresourcelimits
+
+        violation[{"msg": msg}] {
+          container := input.review.object.spec.containers[_]
+          not is_exempt(container.image)
+          not has_limit(container, "cpu")
+          msg := sprintf("container '%v' must set resources.limits.cpu", [container.name])
+        }
+
+        violation[{"msg": msg}] {
+          container := input.review.object.spec.containers[_]
+          not is_exempt(container.image)
+          not has_limit(container, "memory")
+          msg := sprintf("container '%v' must set resources.limits.memory", [container.name])
+        }
+
+        violation[{"msg": msg}] {
+          container := input.review.object.spec.initContainers[_]
+          not is_exempt(container.image)
+          not has_limit(container, "cpu")
+          msg := sprintf("initContainer '%v' must set resources.limits.cpu", [container.name])
+        }
+
+        violation[{"msg": msg}] {
+          container := input.review.object.spec.initContainers[_]
+          not is_exempt(container.image)
+          not has_limit(container, "memory")
+          msg := sprintf("initContainer '%v' must set resources.limits.memory", [container.name])
+        }
+
+        has_limit(container, resource) {
+          container.resources.limits[resource]
+        }
+
+        is_exempt(image) {
+          some i
+          startswith(image, input.parameters.exemptImages[i])
+        }

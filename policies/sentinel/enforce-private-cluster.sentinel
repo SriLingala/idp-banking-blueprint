@@ -1,0 +1,49 @@
+# enforce-private-cluster
+#
+# Public GKE clusters are never approved on the banking estate. This policy
+# blocks any plan that creates a cluster with public nodes or a public
+# control plane endpoint.
+
+import "tfplan/v2" as tfplan
+
+violations = []
+
+clusters = filter tfplan.resource_changes as _, rc {
+    rc.type is "google_container_cluster" and
+    not (rc.change.actions contains "delete" and not (rc.change.actions contains "create"))
+}
+
+for clusters as address, rc {
+    after = rc.change.after else {}
+    pc = after.private_cluster_config else []
+
+    private_nodes = false
+    private_endpoint = false
+
+    for pc as cfg {
+        if cfg.enable_private_nodes is true {
+            private_nodes = true
+        }
+        if cfg.enable_private_endpoint is true {
+            private_endpoint = true
+        }
+    }
+
+    if not private_nodes {
+        append(violations, address + ": private_cluster_config.enable_private_nodes must be true")
+    }
+    if not private_endpoint {
+        append(violations, address + ": private_cluster_config.enable_private_endpoint must be true")
+    }
+}
+
+main = rule {
+    length(violations) is 0
+}
+
+if length(violations) > 0 {
+    print("enforce-private-cluster: clusters must be private:")
+    for violations as v {
+        print("  - " + v)
+    }
+}

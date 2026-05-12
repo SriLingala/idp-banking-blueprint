@@ -4,12 +4,14 @@ on:
   pull_request:
     paths:
       - "argocd/**"
+      - "policies/opa/**"
       - ".github/workflows/yaml-lint.yml"
   push:
     branches:
       - main
     paths:
       - "argocd/**"
+      - "policies/opa/**"
       - ".github/workflows/yaml-lint.yml"
 
 permissions:
@@ -17,15 +19,21 @@ permissions:
 
 jobs:
   yamllint:
-    name: yamllint argocd/
+    name: yamllint (${{ matrix.path }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        path:
+          - argocd/
+          - policies/opa/
     steps:
       - uses: actions/checkout@v4
 
       - name: yamllint
         uses: ibiqlik/action-yamllint@v3
         with:
-          file_or_dir: argocd/
+          file_or_dir: ${{ matrix.path }}
           config_data: |
             extends: default
             rules:

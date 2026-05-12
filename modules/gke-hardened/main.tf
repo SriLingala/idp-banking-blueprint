@@ -175,6 +175,18 @@ resource "google_container_cluster" "this" {
   }
 
   # ---------------------------------------------------------------------------
+  # Binary Authorization (v0.3) — only attested images may run on the
+  # cluster. The attestors and policy are managed by the platform IAM team
+  # in a separate Terraform stack; this resource only opts the cluster in.
+  # ---------------------------------------------------------------------------
+  dynamic "binary_authorization" {
+    for_each = var.enable_binary_authorization ? [1] : []
+    content {
+      evaluation_mode = var.binary_authorization_evaluation_mode
+    }
+  }
+
+  # ---------------------------------------------------------------------------
   # Misc safety
   # ---------------------------------------------------------------------------
   enable_shielded_nodes = true
