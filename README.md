@@ -51,6 +51,7 @@ It is **not** a tutorial. It is a credible starting point.
 │   ├── dev-bootstrap/              ← Pre-cluster: project, VPC, KMS, state bucket, bastion (v1.1)
 │   ├── dev/                        ← Reference cluster composition (v0.1)
 │   ├── dev-platform/               ← Post-cluster: Argo CD bootstrap (v1.2)
+│   ├── dev-tenants/                ← Per-tenant tenant-namespace module calls (v1.3)
 │   └── prod/                       ← Identical to dev except sizing & quotas (v1.0)
 ├── argocd/
 │   ├── projects/                   ← Multi-tenant AppProjects (v0.2)
