@@ -1,0 +1,58 @@
+name: Terraform Validate
+
+on:
+  pull_request:
+    paths:
+      - "modules/**"
+      - "environments/**"
+      - ".github/workflows/terraform-validate.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "modules/**"
+      - "environments/**"
+      - ".github/workflows/terraform-validate.yml"
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  fmt:
+    name: terraform fmt
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.9.5
+
+      - name: terraform fmt -check -recursive
+        run: terraform fmt -check -recursive
+
+  validate:
+    name: terraform validate (${{ matrix.path }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        path:
+          - modules/gke-hardened
+          - environments/dev
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.9.5
+
+      - name: terraform init (no backend)
+        working-directory: ${{ matrix.path }}
+        run: terraform init -backend=false
+
+      - name: terraform validate
+        working-directory: ${{ matrix.path }}
+        run: terraform validate -no-color

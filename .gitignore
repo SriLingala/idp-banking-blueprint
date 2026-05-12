@@ -1,0 +1,31 @@
+# Terraform
+.terraform/
+.terraform.lock.hcl
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraformrc
+terraform.rc
+
+# Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# macOS / Linux junk
+.DS_Store
+Thumbs.db
+
+# Secrets — belt and braces
+*.pem
+*.key
+*-credentials.json
+service-account*.json

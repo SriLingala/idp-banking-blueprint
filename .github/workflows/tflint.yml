@@ -1,0 +1,43 @@
+name: TFLint
+
+on:
+  pull_request:
+    paths:
+      - "modules/**"
+      - "environments/**"
+      - ".tflint.hcl"
+      - ".github/workflows/tflint.yml"
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  tflint:
+    name: tflint (${{ matrix.path }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        path:
+          - modules/gke-hardened
+          - environments/dev
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: terraform-linters/setup-tflint@v4
+        with:
+          tflint_version: v0.53.0
+
+      - name: tflint --init
+        working-directory: ${{ matrix.path }}
+        run: tflint --init
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: tflint
+        working-directory: ${{ matrix.path }}
+        run: tflint --format compact
