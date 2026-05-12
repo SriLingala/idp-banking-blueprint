@@ -40,9 +40,13 @@ module "gke" {
   enable_backup         = var.enable_backup
   backup_encryption_key = var.backup_encryption_key
 
+  # Machine types are n2d-* (AMD) because gke-hardened defaults
+  # enable_confidential_nodes = true, which requires AMD SEV — supported
+  # on N2D family only. e2-* / n2-* (Intel) machines will fail at apply
+  # with "Confidential nodes feature is not supported for instance type SEV".
   node_pools = {
     bronze = {
-      machine_type  = "e2-standard-4"
+      machine_type  = "n2d-standard-4"
       min_count     = 1
       max_count     = 5
       initial_count = 1
@@ -53,7 +57,7 @@ module "gke" {
       ]
     }
     silver = {
-      machine_type  = "n2-standard-4"
+      machine_type  = "n2d-standard-4"
       min_count     = 2
       max_count     = 10
       initial_count = 2
