@@ -37,9 +37,11 @@ kubectl apply -f argocd/apps/root.yaml
 
 ## Sync waves
 
-- **wave -1** — cert-manager and CRDs (must exist before anything that
-  uses cluster-issuers or annotations)
-- **wave 0** — ingress-nginx, kube-prometheus-stack, Loki, Grafana
+- **wave -2** — kube-prometheus-stack (installs ServiceMonitor / PodMonitor /
+  PrometheusRule / Alertmanager CRDs that everything else references)
+- **wave -1** — cert-manager and Gatekeeper (their own CRDs land too;
+  cert-manager's ClusterIssuer needs cert-manager pods Ready)
+- **wave 0** — ingress-nginx, Loki, Grafana, Gatekeeper Constraints
 - **wave 1** — tenant namespaces and apps
 
 `argocd.argoproj.io/sync-wave` annotations on each Application drive

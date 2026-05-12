@@ -24,8 +24,9 @@ Common options:
 
 The "root" Application points at `argocd/apps/`. Argo CD discovers child Applications under `apps/platform/` and `apps/tenants/` and reconciles them in `sync-wave` order:
 
-- **wave -1** — cert-manager + CRDs
-- **wave 0** — ingress-nginx, kube-prometheus-stack, Loki, Grafana
+- **wave -2** — kube-prometheus-stack (CRDs everyone else uses)
+- **wave -1** — cert-manager, Gatekeeper
+- **wave 0** — ingress-nginx, Loki, Grafana, Gatekeeper Constraints
 - **wave 1** — tenant namespaces and apps
 
 ## Consequences

@@ -6,7 +6,10 @@ metadata:
   labels:
     platform.idp/scope: platform
   annotations:
-    argocd.argoproj.io/sync-wave: "0"
+    # Wave -2 — KPS provides the ServiceMonitor / PodMonitor /
+    # PrometheusRule CRDs that cert-manager (wave -1), ingress-nginx,
+    # loki, and grafana (wave 0) all reference. CRD providers go first.
+    argocd.argoproj.io/sync-wave: "-2"
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
