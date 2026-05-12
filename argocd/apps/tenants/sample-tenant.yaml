@@ -33,8 +33,12 @@ spec:
           tag: "1.27-alpine"
         serviceAccountName: tenant-runtime
         resources:
-          requests: { cpu: 50m, memory: 64Mi }
-          limits:   { cpu: 200m, memory: 128Mi }
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            cpu: 200m
+            memory: 128Mi
 
   destination:
     server: https://kubernetes.default.svc
