@@ -1,0 +1,56 @@
+# AppProject for platform-managed addons. Only the platform team can author
+# applications in this project. Tenant teams use the tenant AppProject(s).
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: platform
+  namespace: argocd
+  labels:
+    platform.idp/scope: platform
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  description: Platform-managed cluster addons (cert-manager, ingress, observability)
+
+  sourceRepos:
+    - https://github.com/SriLingala/idp-banking-blueprint.git
+    - https://charts.jetstack.io
+    - https://kubernetes.github.io/ingress-nginx
+    - https://prometheus-community.github.io/helm-charts
+    - https://grafana.github.io/helm-charts
+
+  destinations:
+    - namespace: cert-manager
+      server: https://kubernetes.default.svc
+    - namespace: ingress-nginx
+      server: https://kubernetes.default.svc
+    - namespace: monitoring
+      server: https://kubernetes.default.svc
+    - namespace: logging
+      server: https://kubernetes.default.svc
+
+  clusterResourceWhitelist:
+    - group: "*"
+      kind: "*"
+
+  namespaceResourceWhitelist:
+    - group: "*"
+      kind: "*"
+
+  # No SyncWindows here — platform addons can sync any time.
+  # Tenant projects do impose windows.
+
+  roles:
+    - name: read-only
+      description: Read-only access for tenant teams (visibility, not control)
+      policies:
+        - p, proj:platform:read-only, applications, get, platform/*, allow
+      groups:
+        - platform:viewers
+    - name: admin
+      description: Full control for platform engineering
+      policies:
+        - p, proj:platform:admin, applications, *, platform/*, allow
+        - p, proj:platform:admin, repositories, *, *, allow
+      groups:
+        - platform:engineers

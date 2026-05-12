@@ -111,6 +111,13 @@ resource "google_container_cluster" "this" {
     dns_cache_config {
       enabled = true
     }
+    # Backup for GKE — installs the in-cluster agent. The backup plan
+    # itself is a separate resource (google_gke_backup_backup_plan) gated
+    # on var.enable_backup so callers can opt in to a baseline plan
+    # without standing up their own.
+    gke_backup_agent_config {
+      enabled = var.enable_backup
+    }
   }
 
   # ---------------------------------------------------------------------------
@@ -267,4 +274,48 @@ resource "google_container_node_pool" "this" {
       initial_node_count,
     ]
   }
+}
+
+###############################################################################
+# Backup for GKE — baseline plan
+#
+# Daily backups of all namespaces, with PVCs and Secrets included, retained
+# for 35 days. Opt-in via var.enable_backup (default true). Banking data
+# residency: backup_location is pinned to the cluster region.
+#
+# This is a *baseline* plan. Tenants that need shorter RPO or cross-region
+# DR add their own google_gke_backup_backup_plan keyed on their namespace.
+###############################################################################
+
+resource "google_gke_backup_backup_plan" "baseline" {
+  count = var.enable_backup ? 1 : 0
+
+  provider = google-beta
+
+  name     = "${var.name}-baseline"
+  project  = var.project_id
+  location = var.region
+  cluster  = google_container_cluster.this.id
+
+  backup_config {
+    include_volume_data = true
+    include_secrets     = true
+
+    all_namespaces = true
+
+    encryption_key {
+      gcp_kms_encryption_key = var.backup_encryption_key
+    }
+  }
+
+  retention_policy {
+    backup_delete_lock_days = var.backup_delete_lock_days
+    backup_retain_days      = var.backup_retain_days
+  }
+
+  backup_schedule {
+    cron_schedule = var.backup_cron_schedule
+  }
+
+  labels = var.labels
 }

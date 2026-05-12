@@ -1,0 +1,36 @@
+# Root app — the only Application applied by hand. Argo CD then discovers
+# every other Application under argocd/apps/{platform,tenants}/ and
+# reconciles them. This is the "app-of-apps" pattern (see ADR-0002).
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: root
+  namespace: argocd
+  labels:
+    platform.idp/scope: platform
+  annotations:
+    argocd.argoproj.io/sync-wave: "-10"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: platform
+
+  source:
+    repoURL: https://github.com/SriLingala/idp-banking-blueprint.git
+    targetRevision: main
+    path: argocd/apps
+    directory:
+      recurse: true
+      include: "{platform/*.yaml,tenants/*.yaml}"
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=false
+      - ServerSideApply=true

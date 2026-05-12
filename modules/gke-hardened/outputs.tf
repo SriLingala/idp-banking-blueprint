@@ -34,3 +34,8 @@ output "node_pool_names" {
   description = "Names of the managed node pools."
   value       = [for np in google_container_node_pool.this : np.name]
 }
+
+output "backup_plan_id" {
+  description = "ID of the baseline Backup for GKE plan (null when enable_backup is false)."
+  value       = var.enable_backup ? google_gke_backup_backup_plan.baseline[0].id : null
+}

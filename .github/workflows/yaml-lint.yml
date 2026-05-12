@@ -1,0 +1,40 @@
+name: YAML Lint
+
+on:
+  pull_request:
+    paths:
+      - "argocd/**"
+      - ".github/workflows/yaml-lint.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "argocd/**"
+      - ".github/workflows/yaml-lint.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  yamllint:
+    name: yamllint argocd/
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: yamllint
+        uses: ibiqlik/action-yamllint@v3
+        with:
+          file_or_dir: argocd/
+          config_data: |
+            extends: default
+            rules:
+              line-length: disable
+              document-start: disable
+              truthy:
+                check-keys: false
+              comments:
+                min-spaces-from-content: 1
+              indentation:
+                spaces: 2
+                indent-sequences: consistent

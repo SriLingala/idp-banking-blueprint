@@ -41,24 +41,26 @@ It is **not** a tutorial. It is a credible starting point.
 ├── ARCHITECTURE.md                 ← Layered overview + threat model
 ├── docs/
 │   ├── adr/                        ← Architecture Decision Records
-│   ├── runbooks/                   ← On-call procedures
-│   └── compliance-notes.md         ← SOX / PCI-DSS / ISO 27001 mapping
+│   ├── runbooks/                   ← On-call procedures (v0.3+)
+│   └── compliance-notes.md         ← SOX / PCI-DSS / ISO 27001 mapping (v1.0)
 ├── modules/                        ← Reusable Terraform modules
 │   ├── gke-hardened/               ← Production-shape GKE cluster (v0.1)
-│   ├── tenant-namespace/           ← Per-tenant Kubernetes namespace
-│   └── observability-stack/        ← Prometheus + Grafana + Loki
+│   ├── tenant-namespace/           ← Per-tenant Kubernetes namespace (v0.2)
+│   └── argocd-bootstrap/           ← Argo CD control plane (v0.2)
 ├── environments/
-│   ├── dev/                        ← Reference dev wiring (v0.1)
-│   └── prod/                       ← Identical to dev except sizing & quotas
-├── policies/
-│   ├── sentinel/                   ← Terraform Enterprise policies
-│   └── opa/                        ← Gatekeeper / Kyverno admission policies
+│   ├── dev/                        ← Reference cluster composition (v0.1)
+│   └── prod/                       ← Identical to dev except sizing & quotas (v1.0)
 ├── argocd/
-│   ├── apps/                       ← App-of-apps pattern
-│   └── projects/                   ← Multi-tenant AppProjects
-└── helm/
-    └── sample-tenant-app/          ← What an onboarded team's app looks like
+│   ├── projects/                   ← Multi-tenant AppProjects (v0.2)
+│   └── apps/                       ← App-of-apps: platform addons + tenant apps (v0.2)
+├── helm/
+│   └── sample-tenant-app/          ← What an onboarded team's app looks like (v0.2)
+└── policies/
+    ├── sentinel/                   ← Terraform Enterprise policies (v0.3)
+    └── opa/                        ← Gatekeeper / Kyverno admission policies (v0.3)
 ```
+
+In-cluster software (observability, ingress, cert-manager, tenant apps) is **not** a Terraform module — Argo CD owns it via the app-of-apps pattern. See [ADR-0002](docs/adr/0002-argocd-app-of-apps.md).
 
 ## Getting started
 
@@ -90,8 +92,8 @@ make onboard-tenant TENANT=acme ENV=dev
 | Version | Status | Scope |
 | --- | --- | --- |
 | v0.1 | **Released** | Hardened GKE module · dev env · ADR-0001 · CI |
-| v0.2 | Planned | Observability stack · Argo CD app-of-apps · sample tenant Helm chart |
-| v0.3 | Planned | Sentinel policies · OPA policies · tenant onboarding runbook |
+| v0.2 | **Released** | Tenant-namespace module · Argo CD bootstrap + app-of-apps · sample tenant Helm chart · Backup for GKE · ADR-0002 |
+| v0.3 | Planned | Sentinel policies · OPA policies · tenant onboarding runbook · Binary Authorization |
 | v1.0 | Planned | Compliance notes (SOX/PCI/ISO) · incident runbook · launch write-up |
 
 ## Architecture Decision Records
@@ -99,7 +101,7 @@ make onboard-tenant TENANT=acme ENV=dev
 | ID | Decision | Status |
 | --- | --- | --- |
 | [0001](docs/adr/0001-multi-tenant-by-namespace.md) | Multi-tenant via namespace, not cluster | Accepted |
-| 0002 | Argo CD app-of-apps for delivery | Planned (v0.2) |
+| [0002](docs/adr/0002-argocd-app-of-apps.md) | Argo CD app-of-apps for delivery | Accepted |
 | 0003 | Sentinel + OPA in defence-in-depth | Planned (v0.3) |
 
 ADRs document the **trade-offs**, not the implementation. Read them first.

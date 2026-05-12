@@ -133,3 +133,47 @@ variable "maintenance_recurrence" {
   type        = string
   default     = "FREQ=WEEKLY;BYDAY=SA,SU"
 }
+
+###############################################################################
+# Backup for GKE (v0.2)
+###############################################################################
+
+variable "enable_backup" {
+  description = "Install the Backup for GKE agent and create a baseline backup plan. Banking default: on."
+  type        = bool
+  default     = true
+}
+
+variable "backup_encryption_key" {
+  description = "KMS key self-link used to encrypt backups. Required when enable_backup is true."
+  type        = string
+  default     = null
+
+  validation {
+    condition     = !var.enable_backup || var.backup_encryption_key != null
+    error_message = "backup_encryption_key is required when enable_backup is true."
+  }
+}
+
+variable "backup_retain_days" {
+  description = "How long backups are retained, in days. Defaults to 35 (one month of weekly + buffer)."
+  type        = number
+  default     = 35
+
+  validation {
+    condition     = var.backup_retain_days >= 7 && var.backup_retain_days <= 365
+    error_message = "backup_retain_days must be between 7 and 365."
+  }
+}
+
+variable "backup_delete_lock_days" {
+  description = "How long backups are locked from deletion (immutability window). Defaults to 7."
+  type        = number
+  default     = 7
+}
+
+variable "backup_cron_schedule" {
+  description = "Cron schedule for baseline backups (cluster local time). Defaults to daily at 02:00."
+  type        = string
+  default     = "0 2 * * *"
+}

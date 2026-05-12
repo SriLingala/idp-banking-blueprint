@@ -1,0 +1,39 @@
+name: Helm Lint
+
+on:
+  pull_request:
+    paths:
+      - "helm/**"
+      - ".github/workflows/helm-lint.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "helm/**"
+      - ".github/workflows/helm-lint.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    name: helm lint (${{ matrix.chart }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        chart:
+          - helm/sample-tenant-app
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: azure/setup-helm@v4
+        with:
+          version: v3.16.2
+
+      - name: helm lint
+        run: helm lint ${{ matrix.chart }}
+
+      - name: helm template (render check)
+        run: helm template ci-test ${{ matrix.chart }} >/dev/null

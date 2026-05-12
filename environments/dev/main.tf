@@ -33,6 +33,13 @@ module "gke" {
   database_encryption_key = var.database_encryption_key
   boot_disk_kms_key       = var.boot_disk_kms_key
 
+  # Backup for GKE: opt in once the backup-dedicated KMS key is provisioned
+  # alongside the etcd + node-disk keys. Until then, keep this off in dev
+  # so the env validates without an unbound key reference. Prod must set
+  # both to true and supply the key.
+  enable_backup         = var.enable_backup
+  backup_encryption_key = var.backup_encryption_key
+
   node_pools = {
     bronze = {
       machine_type  = "e2-standard-4"

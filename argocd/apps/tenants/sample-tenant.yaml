@@ -1,0 +1,49 @@
+# Sample tenant Application — wires the in-repo Helm chart at
+# helm/sample-tenant-app into the `sample` namespace (provisioned by
+# modules/tenant-namespace in the platform Terraform stack).
+#
+# In production, each tenant has *their own* Application file under
+# argocd/apps/tenants/ — that's how onboarding becomes a PR.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: sample-tenant-app
+  namespace: argocd
+  labels:
+    platform.idp/scope: tenant
+    platform.idp/tenant: sample
+  annotations:
+    # Wave 1 — runs after platform addons land.
+    argocd.argoproj.io/sync-wave: "1"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: tenant-sample
+
+  source:
+    repoURL: https://github.com/SriLingala/idp-banking-blueprint.git
+    targetRevision: main
+    path: helm/sample-tenant-app
+    helm:
+      releaseName: sample
+      valuesObject:
+        replicaCount: 2
+        image:
+          repository: nginxinc/nginx-unprivileged
+          tag: "1.27-alpine"
+        serviceAccountName: tenant-runtime
+        resources:
+          requests: { cpu: 50m, memory: 64Mi }
+          limits:   { cpu: 200m, memory: 128Mi }
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: sample
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - ServerSideApply=true
+      - ApplyOutOfSyncOnly=true

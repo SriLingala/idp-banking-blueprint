@@ -1,0 +1,98 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: grafana
+  namespace: argocd
+  labels:
+    platform.idp/scope: platform
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: platform
+
+  source:
+    repoURL: https://grafana.github.io/helm-charts
+    chart: grafana
+    targetRevision: 8.5.2
+    helm:
+      releaseName: grafana
+      values: |
+        replicas: 2
+        persistence:
+          enabled: true
+          size: 10Gi
+          storageClassName: standard-rwo
+        admin:
+          # The admin password is rotated out of band; this just creates
+          # the initial secret reference.
+          existingSecret: grafana-admin
+          userKey: admin-user
+          passwordKey: admin-password
+        # SSO via the same OIDC issuer as Argo CD.
+        grafana.ini:
+          server:
+            root_url: "https://grafana.%(domain)s/"
+          auth.generic_oauth:
+            enabled: true
+            name: PlatformSSO
+            client_id: grafana
+            client_secret: "$__file{/etc/secrets/oidc-client-secret}"
+            scopes: openid email profile groups
+            auth_url: "${OIDC_AUTH_URL}"
+            token_url: "${OIDC_TOKEN_URL}"
+            api_url: "${OIDC_USERINFO_URL}"
+            role_attribute_path: "contains(groups[*], 'platform:engineers') && 'Admin' || contains(groups[*], 'platform:viewers') && 'Viewer'"
+            allow_assign_grafana_admin: true
+        datasources:
+          datasources.yaml:
+            apiVersion: 1
+            datasources:
+              - name: Prometheus
+                type: prometheus
+                isDefault: true
+                url: http://kps-prometheus.monitoring.svc:9090
+                access: proxy
+              - name: Loki
+                type: loki
+                url: http://loki-gateway.logging.svc
+                access: proxy
+        dashboardProviders:
+          dashboardproviders.yaml:
+            apiVersion: 1
+            providers:
+              - name: platform
+                folder: Platform
+                type: file
+                disableDeletion: true
+                options:
+                  path: /var/lib/grafana/dashboards/platform
+        # Ship a baseline set of dashboards. Tenants ship their own via
+        # ConfigMaps with the `grafana_dashboard: "1"` label, picked up
+        # by the dashboard sidecar.
+        sidecar:
+          dashboards:
+            enabled: true
+            label: grafana_dashboard
+            searchNamespace: ALL
+          datasources:
+            enabled: true
+            label: grafana_datasource
+            searchNamespace: ALL
+        ingress:
+          enabled: false  # ingress is configured per-environment; default off
+        serviceMonitor:
+          enabled: true
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

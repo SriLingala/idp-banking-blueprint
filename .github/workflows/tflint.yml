@@ -23,6 +23,8 @@ jobs:
       matrix:
         path:
           - modules/gke-hardened
+          - modules/tenant-namespace
+          - modules/argocd-bootstrap
           - environments/dev
 
     steps:

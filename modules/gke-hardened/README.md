@@ -108,8 +108,13 @@ See `variables.tf` for the authoritative list. Required:
 - A Cloud NAT or private Google access route if nodes need to pull external images
 - A bastion or VPN reachable from `master_authorized_networks`
 
-## Known limitations (v0.1)
+## Known limitations
 
 - Does not provision the VPC, KMS keys, or Cloud NAT. That belongs to the environment composition layer (`environments/dev`).
-- Does not configure Backup for GKE. Add in v0.2.
 - Does not configure Binary Authorization. Add in v0.3.
+
+## Changelog
+
+- **v0.2** — Backup for GKE: in-cluster agent + baseline daily backup plan with CMEK and 35-day retention. Opt out with `enable_backup = false`. Caller must supply `backup_encryption_key` when enabled.
+- **v0.1.2** — Fix `logging_config.enable_components` (`API_SERVER` → `APISERVER`) and move `confidential_nodes` back inside `node_config` on the node pool. Both were `terraform validate` failures.
+- **v0.1** — Initial release.

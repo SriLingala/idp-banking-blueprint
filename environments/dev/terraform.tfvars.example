@@ -21,3 +21,7 @@ master_authorized_networks = [
 
 database_encryption_key = "projects/REPLACE-kms-project/locations/europe-west2/keyRings/idp/cryptoKeys/etcd"
 boot_disk_kms_key       = "projects/REPLACE-kms-project/locations/europe-west2/keyRings/idp/cryptoKeys/nodes"
+
+# Backup for GKE — set to true and supply the key when the backup CMEK is provisioned.
+# enable_backup         = true
+# backup_encryption_key = "projects/REPLACE-kms-project/locations/europe-west2/keyRings/idp/cryptoKeys/backup"

@@ -1,0 +1,74 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: loki
+  namespace: argocd
+  labels:
+    platform.idp/scope: platform
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: platform
+
+  source:
+    repoURL: https://grafana.github.io/helm-charts
+    chart: loki
+    targetRevision: 6.16.0
+    helm:
+      releaseName: loki
+      # Simple-scalable mode: backend / read / write split, but no microservices.
+      # Cheaper than distributed; no SPOF like monolithic.
+      values: |
+        deploymentMode: SimpleScalable
+        loki:
+          auth_enabled: false
+          # CMEK-aware: chunks land in a customer-managed-key bucket; the
+          # bucket name is templated from the env. The bucket itself is
+          # provisioned by the infra stack and IAM-bound to the Loki KSA
+          # via Workload Identity.
+          storage:
+            type: gcs
+            bucketNames:
+              chunks: "${LOKI_CHUNKS_BUCKET}"
+              ruler: "${LOKI_RULER_BUCKET}"
+              admin: "${LOKI_ADMIN_BUCKET}"
+          schemaConfig:
+            configs:
+              - from: "2026-01-01"
+                store: tsdb
+                object_store: gcs
+                schema: v13
+                index:
+                  prefix: index_
+                  period: 24h
+          limits_config:
+            retention_period: 90d
+            ingestion_rate_mb: 10
+            ingestion_burst_size_mb: 20
+            max_query_parallelism: 16
+        backend:
+          replicas: 2
+        read:
+          replicas: 2
+        write:
+          replicas: 3
+        gateway:
+          enabled: true
+          replicas: 2
+        monitoring:
+          serviceMonitor:
+            enabled: true
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: logging
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

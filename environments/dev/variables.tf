@@ -54,6 +54,18 @@ variable "boot_disk_kms_key" {
   type        = string
 }
 
+variable "enable_backup" {
+  description = "Enable Backup for GKE on the dev cluster. Defaults off until the dedicated KMS key is provisioned; prod sets this to true."
+  type        = bool
+  default     = false
+}
+
+variable "backup_encryption_key" {
+  description = "KMS key for Backup for GKE. Required when enable_backup is true."
+  type        = string
+  default     = null
+}
+
 variable "labels" {
   description = "Common labels for cost allocation and audit."
   type        = map(string)

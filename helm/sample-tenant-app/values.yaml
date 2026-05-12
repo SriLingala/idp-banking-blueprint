@@ -1,0 +1,117 @@
+# Default values for sample-tenant-app.
+#
+# This chart is intentionally small and opinionated. It demonstrates what
+# a tenant must put in their values.yaml to satisfy the platform's
+# admission policies (Pod Security Standards `restricted`, NetworkPolicy
+# defaults, ServiceMonitor for scraping).
+
+replicaCount: 2
+
+image:
+  repository: nginxinc/nginx-unprivileged
+  tag: "1.27-alpine"
+  pullPolicy: IfNotPresent
+
+# Defaults to the KSA created by modules/tenant-namespace. Tenants can
+# point at a different KSA they own if they need a different IAM scope.
+serviceAccountName: tenant-runtime
+
+containerPort: 8080
+
+service:
+  type: ClusterIP
+  port: 80
+
+# Resources MUST be set — admission policy denies unbounded containers.
+# These defaults are deliberately small; tenants size up on real signals.
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    cpu: 200m
+    memory: 128Mi
+
+# Horizontal Pod Autoscaler. On by default; tenants disable when sizing
+# from below is critical (e.g. background workers).
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+
+# PodDisruptionBudget — guarantee at least one pod survives a voluntary
+# disruption (node drain, rolling node-pool upgrade).
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+
+# Pod-level security context aligned to Pod Security Standards `restricted`.
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  runAsGroup: 1000
+  fsGroup: 1000
+  seccompProfile:
+    type: RuntimeDefault
+
+containerSecurityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  runAsNonRoot: true
+  capabilities:
+    drop:
+      - ALL
+
+# Tier selection drives toleration + nodeSelector. Match the tenant's
+# tier; the platform schedules accordingly.
+tier: silver
+
+# Liveness / readiness — required for safe rolling updates.
+probes:
+  liveness:
+    httpGet:
+      path: /healthz
+      port: http
+    initialDelaySeconds: 5
+    periodSeconds: 10
+  readiness:
+    httpGet:
+      path: /readyz
+      port: http
+    initialDelaySeconds: 3
+    periodSeconds: 5
+
+# Tenant-owned NetworkPolicies. The namespace default-deny is created by
+# modules/tenant-namespace; this chart adds the *allow* policies that
+# this app specifically needs.
+networkPolicies:
+  # Allow ingress from the ingress-nginx controller.
+  allowIngressFromIngressNginx: true
+  # Allow egress to a list of (namespace, podLabels, ports). Empty by
+  # default — tenants opt in to dependencies explicitly.
+  egress: []
+  # Example entry:
+  #   - namespaceLabels:
+  #       kubernetes.io/metadata.name: kube-system
+  #     podLabels:
+  #       k8s-app: kube-dns
+  #     ports:
+  #       - protocol: UDP
+  #         port: 53
+
+# ServiceMonitor — scrape this app's /metrics endpoint via kube-prometheus-stack.
+serviceMonitor:
+  enabled: true
+  path: /metrics
+  port: http
+  interval: 30s
+
+# Ingress is opt-in. When a tenant wants public exposure, they add a Route
+# or Ingress in their own chart; the platform doesn't create it implicitly.
+ingress:
+  enabled: false
+  className: nginx
+  hosts: []
+  tls: []
+  annotations: {}

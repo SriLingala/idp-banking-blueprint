@@ -1,0 +1,81 @@
+# Template AppProject for a tenant. Copy this file per tenant (e.g.
+# `tenant-acme.yaml`), substitute `__TENANT__`, and commit. The tenant
+# onboarding runbook (v0.3) automates this.
+#
+# The shape is deliberately restrictive:
+#   - source repo is pinned to a single tenant repo
+#   - destination is pinned to the tenant's namespace on the local cluster
+#   - cluster-scoped resources are disallowed
+#   - sync windows enforce a deploy freeze outside business hours by default
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: tenant-sample
+  namespace: argocd
+  labels:
+    platform.idp/scope: tenant
+    platform.idp/tenant: sample
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  description: Tenant `sample` — owned by the sample team
+
+  sourceRepos:
+    - https://github.com/SriLingala/idp-banking-blueprint.git
+    # Add the tenant's own repo here, e.g.:
+    # - git@github.com:example-bank/tenant-sample.git
+
+  destinations:
+    - namespace: sample
+      server: https://kubernetes.default.svc
+
+  # Tenants cannot create cluster-scoped resources. Cluster-wide things
+  # (CRDs, ClusterRoles, ValidatingWebhookConfigurations) must come from
+  # the platform project.
+  clusterResourceWhitelist: []
+
+  namespaceResourceWhitelist:
+    - group: ""
+      kind: "*"
+    - group: apps
+      kind: "*"
+    - group: batch
+      kind: "*"
+    - group: autoscaling
+      kind: "*"
+    - group: networking.k8s.io
+      kind: "*"
+    - group: policy
+      kind: PodDisruptionBudget
+    - group: monitoring.coreos.com
+      kind: ServiceMonitor
+    - group: monitoring.coreos.com
+      kind: PodMonitor
+
+  # No syncs between 18:00 Friday and 08:00 Monday UTC — change freeze
+  # outside business hours is the banking norm. Explicit `manualSync: true`
+  # lets a paged engineer override during an incident.
+  syncWindows:
+    - kind: deny
+      schedule: "0 18 * * 5"
+      duration: 62h
+      applications:
+        - "*"
+      manualSync: true
+      timeZone: UTC
+
+  roles:
+    - name: developer
+      description: Sync and rollback (no project mutation)
+      policies:
+        - p, proj:tenant-sample:developer, applications, get, tenant-sample/*, allow
+        - p, proj:tenant-sample:developer, applications, sync, tenant-sample/*, allow
+        - p, proj:tenant-sample:developer, applications, action/*, tenant-sample/*, allow
+      groups:
+        - tenant:sample:developers
+    - name: owner
+      description: Full app control for the tenant lead
+      policies:
+        - p, proj:tenant-sample:owner, applications, *, tenant-sample/*, allow
+      groups:
+        - tenant:sample:owners

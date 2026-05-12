@@ -1,0 +1,16 @@
+apiVersion: v2
+name: sample-tenant-app
+description: Reference Helm chart showing what an onboarded tenant's application looks like on the platform.
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
+keywords:
+  - banking
+  - idp
+  - reference
+maintainers:
+  - name: Platform Engineering
+    email: platform@example.bank
+home: https://github.com/SriLingala/idp-banking-blueprint
+sources:
+  - https://github.com/SriLingala/idp-banking-blueprint

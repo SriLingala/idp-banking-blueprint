@@ -1,0 +1,104 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: kube-prometheus-stack
+  namespace: argocd
+  labels:
+    platform.idp/scope: platform
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: platform
+
+  source:
+    repoURL: https://prometheus-community.github.io/helm-charts
+    chart: kube-prometheus-stack
+    targetRevision: 65.2.0
+    helm:
+      releaseName: kps
+      # We pin all the controllers to platform-managed node pools and turn
+      # off components that overlap with Google Managed Prometheus (which
+      # is already enabled on the cluster — see modules/gke-hardened).
+      values: |
+        defaultRules:
+          create: true
+          rules:
+            etcd: false
+            kubeApiserverAvailability: false   # GMP covers control-plane
+            kubeApiserverSlos: false
+            kubeControllerManager: false
+            kubeProxy: false
+            kubeScheduler: false
+        kubeApiServer:
+          enabled: false
+        kubeControllerManager:
+          enabled: false
+        kubeScheduler:
+          enabled: false
+        kubeProxy:
+          enabled: false
+        kubeEtcd:
+          enabled: false
+        alertmanager:
+          alertmanagerSpec:
+            replicas: 3
+            storage:
+              volumeClaimTemplate:
+                spec:
+                  accessModes: ["ReadWriteOnce"]
+                  resources:
+                    requests:
+                      storage: 10Gi
+            resources:
+              requests: { cpu: 10m, memory: 64Mi }
+              limits:   { cpu: 200m, memory: 256Mi }
+        prometheus:
+          prometheusSpec:
+            replicas: 2
+            retention: 15d
+            retentionSize: "45GB"
+            walCompression: true
+            ruleSelectorNilUsesHelmValues: false
+            serviceMonitorSelectorNilUsesHelmValues: false
+            podMonitorSelectorNilUsesHelmValues: false
+            probeSelectorNilUsesHelmValues: false
+            storageSpec:
+              volumeClaimTemplate:
+                spec:
+                  accessModes: ["ReadWriteOnce"]
+                  resources:
+                    requests:
+                      storage: 50Gi
+            resources:
+              requests: { cpu: 500m, memory: 2Gi }
+              limits:   { cpu: 2, memory: 8Gi }
+        prometheus-node-exporter:
+          hostNetwork: false
+        grafana:
+          # Grafana ships as its own Application under grafana.yaml so the
+          # data-source wiring stays explicit.
+          enabled: false
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+
+  ignoreDifferences:
+    # The Prometheus operator rewrites resource versions on its own CRDs;
+    # we don't fight it.
+    - group: apiextensions.k8s.io
+      kind: CustomResourceDefinition
+      jsonPointers:
+        - /metadata/annotations
+        - /metadata/labels
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+      - ApplyOutOfSyncOnly=true
