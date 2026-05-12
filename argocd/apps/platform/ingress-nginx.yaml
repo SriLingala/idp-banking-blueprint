@@ -51,6 +51,27 @@ spec:
             capabilities:
               drop: [ALL]
               add: [NET_BIND_SERVICE]
+          # readOnlyRootFilesystem=true forces us to provide writable
+          # emptyDirs for the paths the controller writes to at runtime:
+          #   - /etc/ingress-controller/ssl/   default fake SSL cert + per-Ingress certs
+          #   - /tmp/nginx                     nginx temp files (proxy buffers, client bodies)
+          #   - /var/log/nginx                 access + error logs
+          # Without these, the controller CrashLoopBackOffs on first start
+          # with "could not create PEM certificate file ... read-only file system".
+          extraVolumes:
+            - name: ingress-controller-ssl
+              emptyDir: {}
+            - name: nginx-tmp
+              emptyDir: {}
+            - name: nginx-log
+              emptyDir: {}
+          extraVolumeMounts:
+            - name: ingress-controller-ssl
+              mountPath: /etc/ingress-controller/ssl
+            - name: nginx-tmp
+              mountPath: /tmp/nginx
+            - name: nginx-log
+              mountPath: /var/log/nginx
         defaultBackend:
           enabled: false
 
