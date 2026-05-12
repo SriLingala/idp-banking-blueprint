@@ -1,0 +1,5 @@
+# Copy to terraform.tfvars and fill in. DO NOT COMMIT terraform.tfvars.
+
+project_id   = "REPLACE-with-the-output-of-environments-dev-bootstrap"
+region       = "us-central1"
+cluster_name = "idp-dev"
