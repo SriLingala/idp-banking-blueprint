@@ -70,7 +70,6 @@ data "google_project" "this" {
 locals {
   gke_service_agent     = "service-${data.google_project.this.number}@container-engine-robot.iam.gserviceaccount.com"
   compute_service_agent = "service-${data.google_project.this.number}@compute-system.iam.gserviceaccount.com"
-  backup_service_agent  = "service-${data.google_project.this.number}@gcp-sa-gkebackup.iam.gserviceaccount.com"
 }
 
 # Application-layer etcd encryption — GKE service agent needs encrypt/decrypt.
@@ -87,9 +86,21 @@ resource "google_kms_crypto_key_iam_member" "nodes_compute" {
   member        = "serviceAccount:${local.compute_service_agent}"
 }
 
-# Backup for GKE — the gkebackup service agent encrypts backup objects.
+# Backup for GKE — the gkebackup service agent is *not* auto-created when the
+# API is enabled (unlike container.googleapis.com or compute.googleapis.com).
+# We trigger its provisioning explicitly via google_project_service_identity,
+# then bind the resulting email to encrypt/decrypt on the backup key.
+resource "google_project_service_identity" "gkebackup" {
+  provider = google-beta
+
+  project = google_project.this.project_id
+  service = "gkebackup.googleapis.com"
+
+  depends_on = [google_project_service.enabled]
+}
+
 resource "google_kms_crypto_key_iam_member" "backup_agent" {
   crypto_key_id = google_kms_crypto_key.backup.id
   role          = "roles/cloudkms.cryptoKeyEncrypterDecrypter"
-  member        = "serviceAccount:${local.backup_service_agent}"
+  member        = "serviceAccount:${google_project_service_identity.gkebackup.email}"
 }
