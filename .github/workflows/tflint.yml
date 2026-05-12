@@ -27,6 +27,7 @@ jobs:
           - modules/argocd-bootstrap
           - environments/dev
           - environments/dev-bootstrap
+          - environments/dev-platform
 
     steps:
       - uses: actions/checkout@v4
