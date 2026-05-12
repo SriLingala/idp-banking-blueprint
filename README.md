@@ -40,7 +40,7 @@ It is **not** a tutorial. It is a credible starting point.
 ├── ARCHITECTURE.md                 ← Layered overview + threat model
 ├── docs/
 │   ├── adr/                        ← Architecture Decision Records
-│   ├── runbooks/                   ← Tenant onboarding · Incident response
+│   ├── runbooks/                   ← Tenant onboarding · Incident response · Trial walkthrough
 │   ├── compliance-notes.md         ← SOX / PCI-DSS / ISO 27001 / DORA mapping
 │   └── launch-writeup.md           ← v1.0 launch write-up · trade-offs · what I'd extend next
 ├── modules/                        ← Reusable Terraform modules
@@ -48,7 +48,9 @@ It is **not** a tutorial. It is a credible starting point.
 │   ├── tenant-namespace/           ← Per-tenant Kubernetes namespace (v0.2)
 │   └── argocd-bootstrap/           ← Argo CD control plane (v0.2)
 ├── environments/
+│   ├── dev-bootstrap/              ← Pre-cluster: project, VPC, KMS, state bucket, bastion (v1.1)
 │   ├── dev/                        ← Reference cluster composition (v0.1)
+│   ├── dev-platform/               ← Post-cluster: Argo CD bootstrap (v1.2)
 │   └── prod/                       ← Identical to dev except sizing & quotas (v1.0)
 ├── argocd/
 │   ├── projects/                   ← Multi-tenant AppProjects (v0.2)
