@@ -83,16 +83,16 @@ variable "enable_confidential_nodes" {
 variable "node_pools" {
   description = "Map of node pool name → config. Use taints + tolerations for tier separation."
   type = map(object({
-    machine_type   = string
-    min_count      = number
-    max_count      = number
-    initial_count  = number
-    disk_size_gb   = optional(number, 100)
-    disk_type      = optional(string, "pd-balanced")
-    image_type     = optional(string, "COS_CONTAINERD")
-    preemptible    = optional(bool, false)
-    spot           = optional(bool, false)
-    labels         = optional(map(string), {})
+    machine_type  = string
+    min_count     = number
+    max_count     = number
+    initial_count = number
+    disk_size_gb  = optional(number, 100)
+    disk_type     = optional(string, "pd-balanced")
+    image_type    = optional(string, "COS_CONTAINERD")
+    preemptible   = optional(bool, false)
+    spot          = optional(bool, false)
+    labels        = optional(map(string), {})
     taints = optional(list(object({
       key    = string
       value  = string

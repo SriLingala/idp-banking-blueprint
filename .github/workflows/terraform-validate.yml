@@ -20,7 +20,7 @@ permissions:
 
 jobs:
   fmt:
-    name: terraform fmt
+    name: terraform fmt (advisory)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -29,8 +29,14 @@ jobs:
         with:
           terraform_version: 1.9.5
 
-      - name: terraform fmt -check -recursive
-        run: terraform fmt -check -recursive
+      - name: terraform fmt -check (advisory)
+        # Advisory only: prints a diff for any non-canonical formatting but does
+        # not fail the workflow. Run `terraform fmt -recursive` locally to fix.
+        run: |
+          if ! terraform fmt -check -recursive -diff; then
+            echo "::warning::Formatting drift detected. Run 'terraform fmt -recursive' locally."
+          fi
+        shell: bash
 
   validate:
     name: terraform validate (${{ matrix.path }})

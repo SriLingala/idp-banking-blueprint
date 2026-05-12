@@ -10,13 +10,17 @@
 #   - Workload Identity bound to the project's WI pool
 #   - Shielded nodes (secure boot + integrity monitoring)
 #   - Confidential nodes (AMD SEV) — optional but on by default
-#   - Pod Security Standards enforced cluster-wide (restricted baseline)
 #   - VPC-native (alias IPs) — required for NetworkPolicy
 #   - NetworkPolicy enabled (Calico)
 #   - CMEK on boot disks + application-layer etcd encryption
-#   - Cloud Audit Logs (system_components, workloads) → Cloud Logging
+#   - Cloud Audit Logs (system_components, workloads, API server) → Cloud Logging
+#   - Managed Prometheus enabled
 #   - Release channel REGULAR, weekend maintenance window
 #   - Resource labels propagated for cost allocation
+#
+# Pod Security Standards are enforced via the in-tree Kubernetes admission
+# controller (PodSecurity) using namespace labels in v0.2's tenant-namespace
+# module. Cluster-side PSS does not require any setting on this resource.
 ###############################################################################
 
 resource "google_container_cluster" "this" {
@@ -84,14 +88,6 @@ resource "google_container_cluster" "this" {
   }
 
   # ---------------------------------------------------------------------------
-  # Pod Security Standards — restrict the entire cluster.
-  # Tenants opt out per-namespace only with platform approval.
-  # ---------------------------------------------------------------------------
-  pod_security_policy_config {
-    enabled = false # PSP is deprecated; we use the built-in PSS admission instead
-  }
-
-  # ---------------------------------------------------------------------------
   # NetworkPolicy — required for multi-tenant default-deny.
   # ---------------------------------------------------------------------------
   network_policy {
@@ -108,9 +104,6 @@ resource "google_container_cluster" "this" {
     }
     http_load_balancing {
       disabled = false
-    }
-    gcp_filestore_csi_driver_config {
-      enabled = false
     }
     gce_persistent_disk_csi_driver_config {
       enabled = true
@@ -161,11 +154,6 @@ resource "google_container_cluster" "this" {
     managed_prometheus {
       enabled = true
     }
-
-    advanced_datapath_observability_config {
-      enable_metrics = true
-      enable_relay   = false
-    }
   }
 
   # ---------------------------------------------------------------------------
@@ -188,12 +176,10 @@ resource "google_container_cluster" "this" {
   resource_labels = var.labels
 
   lifecycle {
+    # GKE auto-bumps the min_master_version when the release channel rolls.
+    # Ignore so we don't fight it on every plan.
     ignore_changes = [
-      # GKE auto-bumps the min_master_version when the release channel rolls.
-      # Ignore so we don't fight it on every plan.
       min_master_version,
-      # node_config block on the default pool we removed
-      node_config,
     ]
   }
 }
@@ -231,6 +217,14 @@ resource "google_container_node_pool" "this" {
     max_unavailable = 0
   }
 
+  # Confidential nodes are configured at the node pool top level.
+  dynamic "confidential_nodes" {
+    for_each = var.enable_confidential_nodes ? [1] : []
+    content {
+      enabled = true
+    }
+  }
+
   node_config {
     machine_type = each.value.machine_type
     disk_size_gb = each.value.disk_size_gb
@@ -261,10 +255,6 @@ resource "google_container_node_pool" "this" {
     shielded_instance_config {
       enable_secure_boot          = true
       enable_integrity_monitoring = true
-    }
-
-    confidential_nodes {
-      enabled = var.enable_confidential_nodes
     }
 
     metadata = {
