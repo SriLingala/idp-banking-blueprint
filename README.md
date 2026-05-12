@@ -2,7 +2,6 @@
 
 > An opinionated reference for an Internal Developer Platform on GKE,
 > built around the constraints of a regulated banking environment.
-> Inspired by patterns I've shipped at **Lloyds Banking Group** and **Citi Group**.
 
 [![Terraform Validate](https://github.com/SriLingala/idp-banking-blueprint/actions/workflows/terraform-validate.yml/badge.svg)](https://github.com/SriLingala/idp-banking-blueprint/actions/workflows/terraform-validate.yml)
 [![TFLint](https://github.com/SriLingala/idp-banking-blueprint/actions/workflows/tflint.yml/badge.svg)](https://github.com/SriLingala/idp-banking-blueprint/actions/workflows/tflint.yml)

@@ -73,7 +73,7 @@ A new joiner — senior platform engineer — should be productive within their 
 
 ## Acknowledgements
 
-- The patterns here are shaped by what I shipped at **Lloyds Banking Group** and **Citi Group**. Specific implementations are this repo's; the design instincts come from production work with platform teams there.
+- The design instincts come from years of production platform work in regulated financial services; the specific implementations are this repo's.
 - The ADR template is adapted from Michael Nygard's original 2011 post.
 - Multi-tenant trade-offs follow the [GKE enterprise multi-tenancy guide](https://cloud.google.com/kubernetes-engine/docs/best-practices/enterprise-multitenancy).
 
