@@ -81,6 +81,7 @@ The control-to-evidence map below intentionally points at concrete artifacts in 
 | --- | --- | --- | --- |
 | PCI-DSS 1.3 | Isolate cardholder environment | Pod Security Standards `restricted`; NetworkPolicy default-deny; ResourceQuota + LimitRange caps; Workload Identity scoped per tenant | `modules/tenant-namespace`; `policies/opa/` |
 | ISO A.8.21 | Security of network services | Same as PCI 1.2 | Same |
+| ISO A.5.18 | Privileged access scoping | The **platform** Argo CD AppProject is allowed to write to `kube-system` (needed by kube-prometheus-stack to install scrape Services for coreDns and kubelet). **Tenant** AppProjects are never allowed to write to `kube-system` — the deny-by-default posture for tenants is unchanged. | `argocd/projects/platform.yaml` (allows); `argocd/projects/tenant-default.yaml` (denies) |
 
 ### Cost & label hygiene (audit + finance)
 
