@@ -1,0 +1,7 @@
+# Copy to terraform.tfvars and fill in the billing account.
+# DO NOT COMMIT terraform.tfvars — it is in .gitignore.
+
+billing_account = "XXXXXX-XXXXXX-XXXXXX"   # gcloud billing accounts list
+
+# region            = "us-central1"
+# project_id_prefix = "idp-bank-trial"

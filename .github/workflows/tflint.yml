@@ -26,6 +26,7 @@ jobs:
           - modules/tenant-namespace
           - modules/argocd-bootstrap
           - environments/dev
+          - environments/dev-bootstrap
 
     steps:
       - uses: actions/checkout@v4
