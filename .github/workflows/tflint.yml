@@ -25,6 +25,7 @@ jobs:
           - modules/gke-hardened
           - modules/tenant-namespace
           - modules/argocd-bootstrap
+          - modules/github-oidc-wif
           - environments/dev
           - environments/dev-bootstrap
           - environments/dev-platform

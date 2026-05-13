@@ -47,7 +47,8 @@ The architecture is documented in:
 ├── modules/                        ← Reusable Terraform modules
 │   ├── gke-hardened/               ← Production-shape GKE cluster (v0.1)
 │   ├── tenant-namespace/           ← Per-tenant Kubernetes namespace (v0.2)
-│   └── argocd-bootstrap/           ← Argo CD control plane (v0.2)
+│   ├── argocd-bootstrap/           ← Argo CD control plane (v0.2)
+│   └── github-oidc-wif/            ← Workload Identity Federation for GitHub Actions (v1.4)
 ├── environments/
 │   ├── dev-bootstrap/              ← Pre-cluster: project, VPC, KMS, state bucket, bastion (v1.1)
 │   ├── dev/                        ← Reference cluster composition (v0.1)
@@ -119,7 +120,8 @@ make onboard-tenant TENANT=acme ENV=dev
 | v1.1 | **Released** | `environments/dev-bootstrap` — pre-cluster stack (project, VPC, KMS keys, Cloud NAT, GCS state bucket, bastion VM with IAP) |
 | v1.2 | **Released** | `environments/dev-platform` — post-cluster Argo CD bootstrap composition (the only Helm release Terraform owns; everything else flows through Argo CD) |
 | v1.3 | **Released** | `environments/dev-tenants` — per-tenant compositions calling `modules/tenant-namespace` · [trial walkthrough](docs/runbooks/trial-walkthrough.md) with end-to-end reconciliation Common Gotchas table covering every wart the trial uncovered |
-| v2.0 | **Planned** | CODEOWNERS · policy unit tests (Rego/Gatekeeper Library) · production-shaped example environment · cost/SLO/DR/secrets management documentation · OPA Constraint denying tenant Apps targeting `kube-system` |
+| v1.4 | **In progress** | Automated `terraform plan` + `apply` via GitHub Actions + Workload Identity Federation · `modules/github-oidc-wif` · ADR-0004 · plan/apply workflows · self-hosted runner on bastion for private-cluster stacks · drift-detection cron |
+| v2.0 | **Planned** | CODEOWNERS · policy unit tests (Rego/Gatekeeper Library) · production-shaped example environment · cost/SLO/DR/secrets management documentation · OPA Constraint denying tenant Apps targeting `kube-system` · per-stack split of the terraform-actions SA |
 
 ## Architecture Decision Records
 
@@ -128,6 +130,7 @@ make onboard-tenant TENANT=acme ENV=dev
 | [0001](docs/adr/0001-multi-tenant-by-namespace.md) | Multi-tenant via namespace, not cluster | Accepted |
 | [0002](docs/adr/0002-argocd-app-of-apps.md) | Argo CD app-of-apps for delivery | Accepted |
 | [0003](docs/adr/0003-sentinel-opa-defence-in-depth.md) | Sentinel + OPA in defence-in-depth | Accepted |
+| [0004](docs/adr/0004-workload-identity-federation-for-cicd.md) | Workload Identity Federation for CI/CD | Accepted |
 
 ADRs document the **trade-offs**, not the implementation. Read them first.
 
