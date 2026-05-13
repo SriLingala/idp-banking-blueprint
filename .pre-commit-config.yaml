@@ -1,0 +1,33 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+        args: ["--unsafe"]
+      - id: check-added-large-files
+
+  - repo: local
+    hooks:
+      - id: terraform-fmt
+        name: terraform fmt
+        entry: terraform fmt -recursive
+        language: system
+        pass_filenames: false
+        files: \.tf$
+
+      - id: helm-template-sample-tenant
+        name: helm template sample tenant chart
+        entry: helm template ci-test helm/sample-tenant-app
+        language: system
+        pass_filenames: false
+        files: ^helm/sample-tenant-app/
+
+      - id: opa-policy-test
+        name: opa test Gatekeeper policies
+        entry: make opa-test
+        language: system
+        pass_filenames: false
+        files: ^(policies/opa/|scripts/extract-gatekeeper-rego.py)
+

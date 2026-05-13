@@ -1,0 +1,22 @@
+project_id = "REPLACE-with-your-prod-project-id"
+region     = "europe-west2"
+
+network_self_link    = "projects/REPLACE-network-project/global/networks/idp-prod-vpc"
+subnetwork_self_link = "projects/REPLACE-network-project/regions/europe-west2/subnetworks/idp-prod-subnet"
+
+pods_secondary_range_name     = "pods"
+services_secondary_range_name = "services"
+
+master_ipv4_cidr_block = "172.20.0.0/28"
+
+master_authorized_networks = [
+  {
+    cidr_block   = "10.20.0.0/24"
+    display_name = "prod-platform-bastion"
+  },
+]
+
+database_encryption_key = "projects/REPLACE-kms-project/locations/europe-west2/keyRings/idp-prod/cryptoKeys/etcd"
+boot_disk_kms_key       = "projects/REPLACE-kms-project/locations/europe-west2/keyRings/idp-prod/cryptoKeys/nodes"
+backup_encryption_key   = "projects/REPLACE-kms-project/locations/europe-west2/keyRings/idp-prod/cryptoKeys/backup"
+

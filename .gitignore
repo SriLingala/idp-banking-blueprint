@@ -9,6 +9,7 @@ tfplan
 *.tfplan
 crash.log
 crash.*.log
+build/
 override.tf
 override.tf.json
 *_override.tf

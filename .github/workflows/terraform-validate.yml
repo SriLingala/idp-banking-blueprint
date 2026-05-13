@@ -52,6 +52,7 @@ jobs:
           - environments/dev-bootstrap
           - environments/dev-platform
           - environments/dev-tenants
+          - environments/prod.example
 
     steps:
       - uses: actions/checkout@v4

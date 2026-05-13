@@ -1,0 +1,19 @@
+# Platform repository ownership. Branch protection should require review from
+# these owners before merge; the file alone documents intent, the GitHub rule
+# enforces it.
+
+* @SriLingala
+
+# Terraform substrate and module changes.
+/modules/ @SriLingala
+/environments/ @SriLingala
+
+# Delivery plane and tenant boundaries.
+/argocd/ @SriLingala
+/helm/ @SriLingala
+
+# Policy, compliance, and audit evidence require security/platform review.
+/policies/ @SriLingala
+/docs/compliance-notes.md @SriLingala
+/docs/runbooks/ @SriLingala
+

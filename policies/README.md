@@ -42,11 +42,20 @@ Wired up via `sentinel.hcl`. Designed to run in Terraform Cloud or Terraform Ent
 Sentinel policies have unit-test mocks alongside them in `policies/sentinel/test/`. Run with:
 
 ```bash
-sentinel test policies/sentinel/
+cd policies/sentinel
+sentinel test
 ```
 
-OPA policies have Rego unit tests in `policies/opa/templates/*_test.rego`. Run with:
+OPA policies have Rego unit tests in `policies/opa/tests/`. The Rego is
+embedded in Gatekeeper `ConstraintTemplate` YAML, so the test command first
+extracts the policy bodies into `build/opa/`:
 
 ```bash
-opa test policies/opa/
+make opa-test
+```
+
+Run both policy suites with:
+
+```bash
+make policy-test
 ```

@@ -19,9 +19,10 @@ It is **not** a tutorial. It is a credible starting point.
 
 ## Architecture
 
-![architecture](docs/architecture.svg)
+The architecture is documented in:
 
-> The full diagram lives in `docs/architecture.svg`. Excalidraw source is in `docs/architecture.excalidraw`.
+- [ARCHITECTURE.md](ARCHITECTURE.md) — layered overview and threat model
+- [docs/architecture-diagram.md](docs/architecture-diagram.md) — Mermaid architecture diagram and trust boundaries
 
 ## Design principles
 
@@ -52,7 +53,7 @@ It is **not** a tutorial. It is a credible starting point.
 │   ├── dev/                        ← Reference cluster composition (v0.1)
 │   ├── dev-platform/               ← Post-cluster: Argo CD bootstrap (v1.2)
 │   ├── dev-tenants/                ← Per-tenant tenant-namespace module calls (v1.3)
-│   └── prod/                       ← Identical to dev except sizing & quotas (v1.0)
+│   └── prod.example/               ← Production-shaped example; copy into a real prod stack
 ├── argocd/
 │   ├── projects/                   ← Multi-tenant AppProjects (v0.2)
 │   └── apps/                       ← App-of-apps: platform addons + tenant apps (v0.2)
@@ -64,6 +65,23 @@ It is **not** a tutorial. It is a credible starting point.
 ```
 
 In-cluster software (observability, ingress, cert-manager, tenant apps) is **not** a Terraform module — Argo CD owns it via the app-of-apps pattern. See [ADR-0002](docs/adr/0002-argocd-app-of-apps.md).
+
+## Operational readiness
+
+- [Cost model](docs/cost-model.md)
+- [SLO and alerting model](docs/slo-alerting.md)
+- [Secrets management boundary](docs/secrets-management.md)
+- [Disaster recovery drill](docs/runbooks/disaster-recovery-drill.md)
+- [Evidence capture checklist](docs/evidence/README.md)
+
+## Local checks
+
+```bash
+make fmt
+make helm-lint
+make opa-test        # requires opa
+make sentinel-test   # requires sentinel
+```
 
 ## Getting started
 
@@ -98,6 +116,7 @@ make onboard-tenant TENANT=acme ENV=dev
 | v0.2 | **Released** | Tenant-namespace module · Argo CD bootstrap + app-of-apps · sample tenant Helm chart · Backup for GKE · ADR-0002 |
 | v0.3 | **Released** | Sentinel policies · OPA Gatekeeper templates + constraints · tenant onboarding runbook · Binary Authorization · ADR-0003 |
 | v1.0 | **Released** | Compliance notes (SOX/PCI/ISO/DORA) · incident-response runbook (with Gatekeeper break-glass) · [launch write-up](docs/launch-writeup.md) |
+| v1.1 | **In progress** | CODEOWNERS · policy tests · production-shaped example · cost/SLO/DR/secrets documentation |
 
 ## Architecture Decision Records
 

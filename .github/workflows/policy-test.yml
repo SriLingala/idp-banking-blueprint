@@ -1,0 +1,55 @@
+name: Policy Test
+
+on:
+  pull_request:
+    paths:
+      - "policies/**"
+      - "scripts/extract-gatekeeper-rego.py"
+      - ".github/workflows/policy-test.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "policies/**"
+      - "scripts/extract-gatekeeper-rego.py"
+      - ".github/workflows/policy-test.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  opa:
+    name: opa test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install OPA
+        run: |
+          curl -L -o opa https://openpolicyagent.org/downloads/v0.70.0/opa_linux_amd64_static
+          chmod +x opa
+          sudo mv opa /usr/local/bin/opa
+
+      - name: Extract Gatekeeper Rego
+        run: python3 scripts/extract-gatekeeper-rego.py
+
+      - name: opa test
+        run: opa test build/opa policies/opa/tests
+
+  sentinel:
+    name: sentinel test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Sentinel
+        run: |
+          curl -L -o sentinel.zip https://releases.hashicorp.com/sentinel/0.27.0/sentinel_0.27.0_linux_amd64.zip
+          unzip sentinel.zip
+          chmod +x sentinel
+          sudo mv sentinel /usr/local/bin/sentinel
+
+      - name: sentinel test
+        working-directory: policies/sentinel
+        run: sentinel test
+

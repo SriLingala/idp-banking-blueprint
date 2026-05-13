@@ -73,7 +73,7 @@ The control-to-evidence map below intentionally points at concrete artifacts in 
 | --- | --- | --- | --- |
 | DORA Art.10 | Backup of ICT systems | Backup for GKE: daily, CMEK-encrypted, 35-day retention, 7-day delete-lock | `modules/gke-hardened` (google_gke_backup_backup_plan) |
 | ISO A.8.13 | Information backup | Same | Same |
-| PCI-DSS 12 | Business continuity | Same; plus regional cluster spans 3 zones | Same |
+| PCI-DSS 12 | Business continuity | Same; plus regional cluster spans 3 zones and quarterly restore drill | `docs/runbooks/disaster-recovery-drill.md`; drill evidence in `docs/evidence/` |
 
 ### Tenant isolation & multi-tenancy
 
@@ -103,3 +103,4 @@ The control-to-evidence map below intentionally points at concrete artifacts in 
 2. For any row the auditor asks about, open the linked file in the repo. The code itself is the evidence.
 3. For evidence that lives outside the repo (Cloud Logging sinks, IDP MFA policy, KMS rotation policy), pull the link from the InfoSec wiki and walk through the live state.
 4. For change-management evidence on a specific date, query the GitHub PR history and the Terraform Cloud / Argo CD audit log for that time range.
+5. For implementation evidence from a sandbox run, use the checklist in `docs/evidence/README.md`.
