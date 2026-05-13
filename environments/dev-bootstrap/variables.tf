@@ -60,3 +60,21 @@ variable "labels" {
     owner   = "platform-engineering"
   }
 }
+
+variable "github_owner" {
+  description = "GitHub user/org owning this repo. Used to scope the Workload Identity Federation pool to the right OIDC subject."
+  type        = string
+  default     = "SriLingala"
+}
+
+variable "github_repository" {
+  description = "GitHub repo name (no owner prefix) that hosts these Terraform stacks and CI/CD workflows."
+  type        = string
+  default     = "idp-banking-blueprint"
+}
+
+variable "github_actions_allowed_branches" {
+  description = "Refs allowed to assume the terraform-actions SA. Default main only — apply happens after PR merge; plan-on-PR uses a separate read-only path documented in v2.0."
+  type        = list(string)
+  default     = ["refs/heads/main"]
+}

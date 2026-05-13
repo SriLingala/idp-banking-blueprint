@@ -117,3 +117,32 @@ output "cluster_tfvars_snippet" {
     backup_encryption_key = "${google_kms_crypto_key.backup.id}"
   EOT
 }
+
+###############################################################################
+# GitHub Actions Workload Identity Federation
+###############################################################################
+
+output "github_wif_provider" {
+  description = "Workload Identity Pool provider — paste into terraform-plan.yml / terraform-apply.yml as `workload_identity_provider`."
+  value       = module.github_wif.provider_resource_name
+}
+
+output "github_wif_service_account" {
+  description = "Service account email the WIF identity impersonates. Paste into the same workflow's `service_account`."
+  value       = module.github_wif.service_account_email
+}
+
+output "github_actions_secrets" {
+  description = "Repository or org-level Actions variables/secrets the operator needs to set once after the first apply. Echoed here so the trial walkthrough can be one paste."
+  value       = <<-EOT
+
+    # ─── set as repository VARIABLES (not secrets — these aren't secret) ───
+    gh variable set GCP_PROJECT_ID            --body "${google_project.this.project_id}"
+    gh variable set GCP_REGION                --body "${var.region}"
+    gh variable set GCP_TFSTATE_BUCKET        --body "${google_storage_bucket.tfstate.name}"
+    gh variable set GCP_WIF_PROVIDER          --body "${module.github_wif.provider_resource_name}"
+    gh variable set GCP_TERRAFORM_SA          --body "${module.github_wif.service_account_email}"
+    gh variable set CLUSTER_NAME              --body "idp-dev"
+  EOT
+}
+
