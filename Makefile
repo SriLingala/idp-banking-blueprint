@@ -3,7 +3,7 @@ ENV   ?= dev
 
 ENVDIR := environments/$(ENV)
 
-.PHONY: help init fmt validate plan apply destroy lint clean argocd-root helm-lint
+.PHONY: help init fmt validate plan apply destroy lint clean argocd-root helm-lint opa-test sentinel-test policy-test
 
 help:
 	@echo "Targets:"
@@ -15,6 +15,9 @@ help:
 	@echo "  make destroy  ENV=dev   - terraform destroy"
 	@echo "  make lint               - tflint on modules and environments"
 	@echo "  make helm-lint          - helm lint + template on helm/ charts"
+	@echo "  make opa-test           - extract Gatekeeper Rego and run OPA tests"
+	@echo "  make sentinel-test      - run Sentinel policy tests"
+	@echo "  make policy-test        - run OPA + Sentinel policy tests"
 	@echo "  make argocd-root        - one-time bootstrap of the Argo CD root app"
 	@echo "  make clean              - remove .terraform/ and lockfiles"
 
@@ -53,6 +56,15 @@ helm-lint:
 		helm lint $$c || exit 1; \
 		helm template ci-test $$c >/dev/null || exit 1; \
 	done
+
+opa-test:
+	python3 scripts/extract-gatekeeper-rego.py
+	opa test build/opa policies/opa/tests
+
+sentinel-test:
+	cd policies/sentinel && sentinel test
+
+policy-test: opa-test sentinel-test
 
 # One-time Argo CD bootstrap. Run with cluster-admin creds; after this,
 # Argo CD owns the rest via the app-of-apps in argocd/apps/.

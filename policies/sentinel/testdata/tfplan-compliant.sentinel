@@ -1,0 +1,54 @@
+resource_changes = {
+  "google_container_cluster.this": {
+    "type": "google_container_cluster",
+    "change": {
+      "actions": ["create"],
+      "after": {
+        "location": "europe-west2",
+        "resource_labels": {
+          "env": "prod",
+          "owner": "platform-engineering",
+          "cost-centre": "bank-platform",
+          "sox": "in-scope",
+        },
+        "database_encryption": [
+          {
+            "state": "ENCRYPTED",
+            "key_name": "projects/bank/locations/europe-west2/keyRings/idp/cryptoKeys/etcd",
+          },
+        ],
+        "private_cluster_config": [
+          {
+            "enable_private_nodes": true,
+            "enable_private_endpoint": true,
+          },
+        ],
+        "master_authorized_networks_config": [
+          {
+            "cidr_blocks": [
+              {
+                "cidr_block": "10.10.0.0/24",
+                "display_name": "platform-bastion",
+              },
+            ],
+          },
+        ],
+      },
+    },
+  },
+  "google_container_node_pool.silver": {
+    "type": "google_container_node_pool",
+    "change": {
+      "actions": ["create"],
+      "after": {
+        "location": "europe-west2",
+        "node_config": [
+          {
+            "boot_disk_kms_key": "projects/bank/locations/europe-west2/keyRings/idp/cryptoKeys/nodes",
+          },
+        ],
+      },
+    },
+  },
+}
+
