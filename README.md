@@ -116,7 +116,10 @@ make onboard-tenant TENANT=acme ENV=dev
 | v0.2 | **Released** | Tenant-namespace module · Argo CD bootstrap + app-of-apps · sample tenant Helm chart · Backup for GKE · ADR-0002 |
 | v0.3 | **Released** | Sentinel policies · OPA Gatekeeper templates + constraints · tenant onboarding runbook · Binary Authorization · ADR-0003 |
 | v1.0 | **Released** | Compliance notes (SOX/PCI/ISO/DORA) · incident-response runbook (with Gatekeeper break-glass) · [launch write-up](docs/launch-writeup.md) |
-| v1.1 | **In progress** | CODEOWNERS · policy tests · production-shaped example · cost/SLO/DR/secrets documentation |
+| v1.1 | **Released** | `environments/dev-bootstrap` — pre-cluster stack (project, VPC, KMS keys, Cloud NAT, GCS state bucket, bastion VM with IAP) |
+| v1.2 | **Released** | `environments/dev-platform` — post-cluster Argo CD bootstrap composition (the only Helm release Terraform owns; everything else flows through Argo CD) |
+| v1.3 | **Released** | `environments/dev-tenants` — per-tenant compositions calling `modules/tenant-namespace` · [trial walkthrough](docs/runbooks/trial-walkthrough.md) with end-to-end reconciliation Common Gotchas table covering every wart the trial uncovered |
+| v2.0 | **Planned** | CODEOWNERS · policy unit tests (Rego/Gatekeeper Library) · production-shaped example environment · cost/SLO/DR/secrets management documentation · OPA Constraint denying tenant Apps targeting `kube-system` |
 
 ## Architecture Decision Records
 
