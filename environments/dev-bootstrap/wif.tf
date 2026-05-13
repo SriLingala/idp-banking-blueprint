@@ -16,7 +16,5 @@ module "github_wif" {
   github_repository = var.github_repository
   allowed_branches  = var.github_actions_allowed_branches
 
-  labels = var.labels
-
   depends_on = [google_project_service.enabled]
 }

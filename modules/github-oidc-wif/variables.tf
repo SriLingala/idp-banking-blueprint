@@ -73,8 +73,3 @@ variable "project_roles" {
   ]
 }
 
-variable "labels" {
-  description = "Labels applied to the service account."
-  type        = map(string)
-  default     = {}
-}
