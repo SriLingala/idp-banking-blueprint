@@ -54,8 +54,60 @@ permissions:
   pull-requests: write
 
 jobs:
+  # ── Precheck ────────────────────────────────────────────────────────────
+  # The plan job below cannot do anything useful until the operator has
+  # run `environments/dev-bootstrap` once and pasted the resulting
+  # `gh variable set ...` block from its `github_actions_secrets` output.
+  # Before that happens — i.e. on the very first PR a fresh clone of this
+  # repo opens — the WIF identity does not exist and the workflow would
+  # fail with a confusing "Permission denied" from google-github-actions/auth.
+  #
+  # This precheck inspects the required variables and skips downstream
+  # plans cleanly if any are missing, with a single SKIP message that
+  # tells the operator exactly what's not set.
+  precheck:
+    name: precheck (vars configured?)
+    runs-on: ubuntu-latest
+    outputs:
+      ready: ${{ steps.check.outputs.ready }}
+    steps:
+      - id: check
+        env:
+          GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+          GCP_REGION: ${{ vars.GCP_REGION }}
+          GCP_TFSTATE_BUCKET: ${{ vars.GCP_TFSTATE_BUCKET }}
+          GCP_WIF_PLAN_PROVIDER: ${{ vars.GCP_WIF_PLAN_PROVIDER }}
+          GCP_TERRAFORM_PLAN_SA: ${{ vars.GCP_TERRAFORM_PLAN_SA }}
+        run: |
+          missing=()
+          for v in GCP_PROJECT_ID GCP_REGION GCP_TFSTATE_BUCKET \
+                   GCP_WIF_PLAN_PROVIDER GCP_TERRAFORM_PLAN_SA; do
+            if [ -z "${!v}" ]; then
+              missing+=("$v")
+            fi
+          done
+          if [ "${#missing[@]}" -gt 0 ]; then
+            {
+              echo "## ⏭ terraform-plan skipped"
+              echo ""
+              echo "The following repository variables are not set:"
+              echo ""
+              for v in "${missing[@]}"; do
+                echo "  - \`$v\`"
+              done
+              echo ""
+              echo "Run \`environments/dev-bootstrap\` once and paste its"
+              echo "\`github_actions_secrets\` output to wire them up."
+            } >> "$GITHUB_STEP_SUMMARY"
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+
   plan:
     name: terraform plan (${{ matrix.stack }})
+    needs: precheck
+    if: needs.precheck.outputs.ready == 'true'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
