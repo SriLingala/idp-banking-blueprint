@@ -1,0 +1,228 @@
+################################################################################
+# terraform-plan.yml
+#
+# PR-time plan for the Terraform stacks. Runs on every PR that touches a
+# Terraform path. For each stack in the matrix it:
+#
+#   1. Authenticates to GCP via the READ-ONLY plan WIF identity (NOT the
+#      apply SA — even a misconfigured PR can't mint apply credentials).
+#   2. Runs `terraform init -backend-config=bucket=...` against the GCS
+#      state bucket.
+#   3. Runs `terraform plan -lock=false -no-color` and captures the output.
+#   4. Uploads the binary tfplan as an artifact named after the PR + stack
+#      so the apply workflow (PR #21) can consume the EXACT plan that was
+#      reviewed — no re-planning at apply time.
+#   5. Posts (or updates) a single PR comment with the plan summary for
+#      every stack, collapsible details for each.
+#
+# Private-cluster stacks (environments/dev-platform, environments/dev-tenants)
+# are intentionally NOT in this matrix — they need to reach the cluster's
+# private API endpoint, which a GitHub-hosted runner cannot do. They join
+# the matrix once the self-hosted runner on the bastion lands (PR #22).
+#
+# Required repository variables (set once after the first dev-bootstrap apply
+# via `gh variable set ...` — the bootstrap stack's `github_actions_secrets`
+# output emits the exact commands):
+#
+#   GCP_PROJECT_ID            project to plan against
+#   GCP_REGION                region for cluster + KMS
+#   GCP_TFSTATE_BUCKET        GCS bucket holding terraform state
+#   GCP_WIF_PLAN_PROVIDER     workload_identity_pool_provider resource path
+#   GCP_TERRAFORM_PLAN_SA     terraform-plan@<project>.iam.gserviceaccount.com
+################################################################################
+name: Terraform Plan
+
+on:
+  pull_request:
+    paths:
+      - "modules/**"
+      - "environments/**"
+      - ".github/workflows/terraform-plan.yml"
+
+# Concurrency: one plan workflow per PR at a time. Newer pushes cancel
+# in-flight plans — saves runner minutes and keeps the latest plan
+# attached to the PR.
+concurrency:
+  group: terraform-plan-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+# Token permissions: the workflow needs to mint an OIDC token (id-token)
+# and comment back on the PR (pull-requests).
+permissions:
+  contents: read
+  id-token: write
+  pull-requests: write
+
+jobs:
+  plan:
+    name: terraform plan (${{ matrix.stack }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        stack:
+          # Public stacks (reachable from GitHub-hosted runners)
+          - environments/dev-bootstrap
+          - environments/dev
+          # NOTE: dev-platform and dev-tenants are added to this matrix in
+          # PR #22 once the self-hosted runner is registered on the bastion.
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authenticate to GCP via WIF (plan identity, read-only)
+        id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PLAN_PROVIDER }}
+          service_account: ${{ vars.GCP_TERRAFORM_PLAN_SA }}
+          # Short-lived access token — extra defence against credential reuse.
+          token_format: access_token
+          access_token_lifetime: 1200s
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.9.5
+
+      # The bootstrap stack uses LOCAL state (chicken-and-egg — it creates
+      # the bucket). Every other stack consumes the bucket as a backend.
+      - name: terraform init
+        working-directory: ${{ matrix.stack }}
+        run: |
+          if [ "${{ matrix.stack }}" = "environments/dev-bootstrap" ]; then
+            terraform init -no-color -backend=false
+          else
+            terraform init -no-color -reconfigure \
+              -backend-config="bucket=${{ vars.GCP_TFSTATE_BUCKET }}"
+          fi
+
+      - name: terraform plan
+        id: plan
+        working-directory: ${{ matrix.stack }}
+        env:
+          # Tell the google provider which project / region the workspace
+          # should target. The stacks themselves read these via var.project_id /
+          # var.region (set below) — exposing them as env vars makes ad-hoc
+          # debugging from a self-hosted runner trivial.
+          GOOGLE_PROJECT: ${{ vars.GCP_PROJECT_ID }}
+          GOOGLE_REGION: ${{ vars.GCP_REGION }}
+          TF_VAR_project_id: ${{ vars.GCP_PROJECT_ID }}
+          TF_VAR_region: ${{ vars.GCP_REGION }}
+        run: |
+          set -o pipefail
+          terraform plan \
+            -no-color \
+            -lock=false \
+            -input=false \
+            -detailed-exitcode \
+            -out=tfplan \
+            2>&1 | tee plan.txt
+          # detailed-exitcode: 0 = no changes, 2 = changes present.
+          # Capture the exit code for the PR-comment step.
+          echo "exit_code=$?" >> "$GITHUB_OUTPUT"
+
+      - name: Summarise plan
+        id: summarise
+        if: always()
+        working-directory: ${{ matrix.stack }}
+        run: |
+          summary=$(grep -E '^Plan: ' plan.txt | tail -1 || true)
+          if [ -z "$summary" ]; then
+            if grep -q 'No changes' plan.txt; then
+              summary="Plan: 0 to add, 0 to change, 0 to destroy."
+            else
+              summary="Plan: (no summary — check details)"
+            fi
+          fi
+          echo "summary=$summary" >> "$GITHUB_OUTPUT"
+
+      - name: Upload tfplan artifact
+        if: success() || steps.plan.outcome == 'success'
+        uses: actions/upload-artifact@v4
+        with:
+          # Artifact name encodes the PR number AND the stack — so the
+          # apply workflow (PR #21) can fetch the exact plan that was
+          # reviewed for THIS PR, not a re-plan from main.
+          name: tfplan-pr${{ github.event.pull_request.number }}-${{ strategy.job-index }}
+          path: ${{ matrix.stack }}/tfplan
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Post plan summary to PR
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+
+            const stack = '${{ matrix.stack }}';
+            const exitCode = '${{ steps.plan.outputs.exit_code }}' || 'unknown';
+            const summary = '${{ steps.summarise.outputs.summary }}' || '(no summary captured)';
+            const outcome = '${{ steps.plan.outcome }}';
+
+            // Read up to 50 KiB of plan output — Medium/large plans get truncated.
+            // The full plan is in the workflow log and in the tfplan artifact.
+            const planPath = path.join(stack, 'plan.txt');
+            let planText = '(plan output not captured)';
+            if (fs.existsSync(planPath)) {
+              const raw = fs.readFileSync(planPath, 'utf-8');
+              const limit = 50_000;
+              planText = raw.length > limit
+                ? raw.slice(-limit) + '\n\n[truncated — see workflow log]'
+                : raw;
+            }
+
+            const icon = outcome === 'success'
+              ? (exitCode === '0' ? '✅' : '🟡')   // 0 = no changes, 2 = changes
+              : '❌';
+
+            const body = `<!-- terraform-plan:${stack} -->
+            ${icon} **\`${stack}\`** — ${summary}
+
+            <details>
+            <summary>Plan output (last 50 KiB)</summary>
+
+            \`\`\`hcl
+            ${planText.replace(/```/g, '`​``')}
+            \`\`\`
+            </details>
+
+            *Plan run on \`${{ github.event.pull_request.head.sha }}\` by \`@${{ github.actor }}\` via the read-only \`terraform-plan\` SA. Artifact: \`tfplan-pr${{ github.event.pull_request.number }}-${{ strategy.job-index }}\`.*`;
+
+            // Find an existing comment for THIS stack (we key on the HTML
+            // comment marker) and update it; otherwise create a new one.
+            // One comment per stack — keeps the PR readable when many
+            // stacks plan in parallel.
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+
+            const marker = `<!-- terraform-plan:${stack} -->`;
+            const existing = comments.find(c =>
+              c.user && c.user.type === 'Bot' && (c.body || '').includes(marker)
+            );
+
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body,
+              });
+            }
+
+      - name: Fail job on plan error
+        if: steps.plan.outcome == 'failure'
+        run: |
+          echo "::error::Terraform plan failed for ${{ matrix.stack }} — see job log."
+          exit 1

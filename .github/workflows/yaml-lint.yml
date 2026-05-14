@@ -5,14 +5,14 @@ on:
     paths:
       - "argocd/**"
       - "policies/opa/**"
-      - ".github/workflows/yaml-lint.yml"
+      - ".github/workflows/**"
   push:
     branches:
       - main
     paths:
       - "argocd/**"
       - "policies/opa/**"
-      - ".github/workflows/yaml-lint.yml"
+      - ".github/workflows/**"
 
 permissions:
   contents: read
@@ -27,6 +27,7 @@ jobs:
         path:
           - argocd/
           - policies/opa/
+          - .github/workflows/
     steps:
       - uses: actions/checkout@v4
 

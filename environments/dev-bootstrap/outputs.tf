@@ -132,17 +132,33 @@ output "github_wif_service_account" {
   value       = module.github_wif.service_account_email
 }
 
+output "github_wif_plan_provider" {
+  description = "Read-only Workload Identity Pool provider for PR-time plan workflows. Lower trust than the apply provider — distinct pool, distinct SA, refs scoped to PR refs."
+  value       = module.github_wif_plan.provider_resource_name
+}
+
+output "github_wif_plan_service_account" {
+  description = "Service account email for the read-only plan identity."
+  value       = module.github_wif_plan.service_account_email
+}
+
 output "github_actions_secrets" {
-  description = "Repository or org-level Actions variables/secrets the operator needs to set once after the first apply. Echoed here so the trial walkthrough can be one paste."
+  description = "Repository-level Actions variables the operator sets once after the first apply. Two pairs: apply (main only, write) + plan (PR refs, read-only)."
   value       = <<-EOT
 
     # ─── set as repository VARIABLES (not secrets — these aren't secret) ───
-    gh variable set GCP_PROJECT_ID            --body "${google_project.this.project_id}"
-    gh variable set GCP_REGION                --body "${var.region}"
-    gh variable set GCP_TFSTATE_BUCKET        --body "${google_storage_bucket.tfstate.name}"
-    gh variable set GCP_WIF_PROVIDER          --body "${module.github_wif.provider_resource_name}"
-    gh variable set GCP_TERRAFORM_SA          --body "${module.github_wif.service_account_email}"
-    gh variable set CLUSTER_NAME              --body "idp-dev"
+    gh variable set GCP_PROJECT_ID         --body "${google_project.this.project_id}"
+    gh variable set GCP_REGION             --body "${var.region}"
+    gh variable set GCP_TFSTATE_BUCKET     --body "${google_storage_bucket.tfstate.name}"
+    gh variable set CLUSTER_NAME           --body "idp-dev"
+
+    # Apply identity (main only, write)
+    gh variable set GCP_WIF_PROVIDER       --body "${module.github_wif.provider_resource_name}"
+    gh variable set GCP_TERRAFORM_SA       --body "${module.github_wif.service_account_email}"
+
+    # Plan identity (PR refs, read-only)
+    gh variable set GCP_WIF_PLAN_PROVIDER  --body "${module.github_wif_plan.provider_resource_name}"
+    gh variable set GCP_TERRAFORM_PLAN_SA  --body "${module.github_wif_plan.service_account_email}"
   EOT
 }
 
