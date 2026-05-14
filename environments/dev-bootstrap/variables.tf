@@ -74,7 +74,39 @@ variable "github_repository" {
 }
 
 variable "github_actions_allowed_branches" {
-  description = "Refs allowed to assume the terraform-actions SA. Default main only — apply happens after PR merge; plan-on-PR uses a separate read-only path documented in v2.0."
+  description = "Refs allowed to assume the terraform-actions APPLY SA. Default main only — apply happens after PR merge."
   type        = list(string)
   default     = ["refs/heads/main"]
+}
+
+variable "github_actions_plan_allowed_branches" {
+  description = "Refs allowed to assume the terraform-plan READ-ONLY SA. Covers PR-time plans on any branch (refs/pull/*/merge) plus speculative plans on main."
+  type        = list(string)
+  default     = ["refs/pull/*/merge", "refs/heads/main"]
+}
+
+variable "github_actions_plan_roles" {
+  description = "Project-level roles granted to the terraform-plan SA. Read-only by design — these surfaces are enough to refresh state and compute a diff against the live infrastructure without being able to mutate anything."
+  type        = list(string)
+  default = [
+    # State bucket: read object, list bucket. Plans use -lock=false so
+    # no write needed.
+    "roles/storage.objectViewer",
+    # Compute / Network read for VPC, subnets, NAT, firewall plans
+    "roles/compute.viewer",
+    # GKE cluster + backup plans
+    "roles/container.viewer",
+    "roles/gkebackup.viewer",
+    # KMS — read key + binding state
+    "roles/cloudkms.viewer",
+    # Service accounts and IAM bindings the plan needs to refresh
+    "roles/iam.securityReviewer",
+    # Logging / monitoring resources
+    "roles/logging.viewer",
+    "roles/monitoring.viewer",
+    # Binary Authorization
+    "roles/binaryauthorization.policyViewer",
+    # Workload Identity Federation pool / provider state
+    "roles/iam.workloadIdentityPoolViewer",
+  ]
 }
