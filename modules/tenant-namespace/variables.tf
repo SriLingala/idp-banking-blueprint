@@ -89,3 +89,15 @@ variable "extra_labels" {
   type        = map(string)
   default     = {}
 }
+
+variable "secret_prefix" {
+  description = "Secret Manager / SecretStore path prefix this tenant is allowed to read via External Secrets Operator. Written to the namespace as the platform.idp/secret-prefix annotation, which the K8sExternalSecretScope Gatekeeper constraint enforces at admission time. Leave empty to deny every ExternalSecret in this namespace (fail closed). Convention: \"<tenant>/\" — e.g. \"payments/\"."
+  type        = string
+  default     = ""
+}
+
+variable "allowed_gsa" {
+  description = "Comma-separated list of GCP service-account emails this namespace is allowed to impersonate via Workload Identity. Written to the namespace as platform.idp/allowed-gsa, which the K8sPinWIServiceAccount Gatekeeper constraint enforces. Defaults to var.gcp_service_account_email when null."
+  type        = string
+  default     = null
+}

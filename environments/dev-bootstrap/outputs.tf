@@ -119,46 +119,71 @@ output "cluster_tfvars_snippet" {
 }
 
 ###############################################################################
-# GitHub Actions Workload Identity Federation
+# GitHub Actions Workload Identity Federation — per-stack identities
+#
+# One apply pool + provider (shared across the four per-stack apply SAs).
+# One plan pool + provider (single read-only SA covering every stack).
 ###############################################################################
 
+# Apply pool — shared by all four per-stack APPLY identities.
 output "github_wif_provider" {
-  description = "Workload Identity Pool provider — paste into terraform-plan.yml / terraform-apply.yml as `workload_identity_provider`."
+  description = "Workload Identity Pool provider for the APPLY pool — paste into terraform-apply.yml as `workload_identity_provider`. Pair with whichever per-stack SA the workflow's job targets."
   value       = module.github_wif.provider_resource_name
 }
 
-output "github_wif_service_account" {
-  description = "Service account email the WIF identity impersonates. Paste into the same workflow's `service_account`."
+# Per-stack apply SAs.
+output "github_wif_bootstrap_service_account" {
+  description = "Service account email used by environments/dev-bootstrap apply jobs."
   value       = module.github_wif.service_account_email
 }
 
+output "github_wif_cluster_service_account" {
+  description = "Service account email used by environments/dev apply jobs."
+  value       = module.github_wif_cluster.service_account_email
+}
+
+output "github_wif_platform_service_account" {
+  description = "Service account email used by environments/dev-platform apply jobs."
+  value       = module.github_wif_platform.service_account_email
+}
+
+output "github_wif_tenants_service_account" {
+  description = "Service account email used by environments/dev-tenants apply jobs."
+  value       = module.github_wif_tenants.service_account_email
+}
+
+# Plan pool — separate provider (PR refs allowed), single read-only SA.
 output "github_wif_plan_provider" {
-  description = "Read-only Workload Identity Pool provider for PR-time plan workflows. Lower trust than the apply provider — distinct pool, distinct SA, refs scoped to PR refs."
+  description = "Read-only Workload Identity Pool provider for PR-time plan workflows. Lower trust than the apply provider — distinct pool, distinct attribute_condition, refs scoped to PR refs."
   value       = module.github_wif_plan.provider_resource_name
 }
 
 output "github_wif_plan_service_account" {
-  description = "Service account email for the read-only plan identity."
+  description = "Service account email for the read-only plan identity. One SA covers every stack at plan time because read-only roles compose cleanly."
   value       = module.github_wif_plan.service_account_email
 }
 
 output "github_actions_secrets" {
-  description = "Repository-level Actions variables the operator sets once after the first apply. Two pairs: apply (main only, write) + plan (PR refs, read-only)."
+  description = "Repository-level Actions variables the operator sets once after the first apply. Five SAs (four per-stack apply + one shared plan), two pools."
   value       = <<-EOT
 
     # ─── set as repository VARIABLES (not secrets — these aren't secret) ───
-    gh variable set GCP_PROJECT_ID         --body "${google_project.this.project_id}"
-    gh variable set GCP_REGION             --body "${var.region}"
-    gh variable set GCP_TFSTATE_BUCKET     --body "${google_storage_bucket.tfstate.name}"
-    gh variable set CLUSTER_NAME           --body "idp-dev"
+    gh variable set GCP_PROJECT_ID                    --body "${google_project.this.project_id}"
+    gh variable set GCP_REGION                        --body "${var.region}"
+    gh variable set GCP_TFSTATE_BUCKET                --body "${google_storage_bucket.tfstate.name}"
+    gh variable set CLUSTER_NAME                      --body "idp-dev"
 
-    # Apply identity (main only, write)
-    gh variable set GCP_WIF_PROVIDER       --body "${module.github_wif.provider_resource_name}"
-    gh variable set GCP_TERRAFORM_SA       --body "${module.github_wif.service_account_email}"
+    # Apply pool (main only, write). One provider, four per-stack SAs —
+    # the apply workflow selects the SA by stack at job time.
+    gh variable set GCP_WIF_PROVIDER                  --body "${module.github_wif.provider_resource_name}"
+    gh variable set GCP_TERRAFORM_BOOTSTRAP_SA        --body "${module.github_wif.service_account_email}"
+    gh variable set GCP_TERRAFORM_CLUSTER_SA          --body "${module.github_wif_cluster.service_account_email}"
+    gh variable set GCP_TERRAFORM_PLATFORM_SA         --body "${module.github_wif_platform.service_account_email}"
+    gh variable set GCP_TERRAFORM_TENANTS_SA          --body "${module.github_wif_tenants.service_account_email}"
 
-    # Plan identity (PR refs, read-only)
-    gh variable set GCP_WIF_PLAN_PROVIDER  --body "${module.github_wif_plan.provider_resource_name}"
-    gh variable set GCP_TERRAFORM_PLAN_SA  --body "${module.github_wif_plan.service_account_email}"
+    # Plan pool (PR refs, read-only). One provider, one SA, every stack.
+    gh variable set GCP_WIF_PLAN_PROVIDER             --body "${module.github_wif_plan.provider_resource_name}"
+    gh variable set GCP_TERRAFORM_PLAN_SA             --body "${module.github_wif_plan.service_account_email}"
   EOT
 }
 

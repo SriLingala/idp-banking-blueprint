@@ -120,8 +120,9 @@ make onboard-tenant TENANT=acme ENV=dev
 | v1.1 | **Released** | `environments/dev-bootstrap` — pre-cluster stack (project, VPC, KMS keys, Cloud NAT, GCS state bucket, bastion VM with IAP) |
 | v1.2 | **Released** | `environments/dev-platform` — post-cluster Argo CD bootstrap composition (the only Helm release Terraform owns; everything else flows through Argo CD) |
 | v1.3 | **Released** | `environments/dev-tenants` — per-tenant compositions calling `modules/tenant-namespace` · [trial walkthrough](docs/runbooks/trial-walkthrough.md) with end-to-end reconciliation Common Gotchas table covering every wart the trial uncovered |
-| v1.4 | **In progress** | Automated `terraform plan` + `apply` via GitHub Actions + Workload Identity Federation · `modules/github-oidc-wif` · ADR-0004 · plan/apply workflows · self-hosted runner on bastion for private-cluster stacks · drift-detection cron |
-| v2.0 | **Planned** | CODEOWNERS · policy unit tests (Rego/Gatekeeper Library) · production-shaped example environment · cost/SLO/DR/secrets management documentation · OPA Constraint denying tenant Apps targeting `kube-system` · per-stack split of the terraform-actions SA |
+| v1.4 | **Released** | Automated `terraform plan` via GitHub Actions + Workload Identity Federation · `modules/github-oidc-wif` · ADR-0004 · read-only plan SA distinct from apply SA |
+| v1.5 | **Released** | Per-stack apply identities (`terraform-bootstrap` / `cluster` / `platform` / `tenants`) replacing the single `terraform-actions` SA · ADR-0006 · External Secrets Operator for tenant secrets via Workload Identity · `K8sExternalSecretScope` Gatekeeper constraint enforcing per-tenant Secret Manager prefixes · ADR-0005 · self-hosted GitHub Actions runner on the bastion so `terraform-plan` covers the private-cluster stacks (dev-platform, dev-tenants) |
+| v2.0 | **Planned** | CODEOWNERS · production-shaped example environment · cost/SLO/DR documentation refresh · KMS key rotation automation · data-classification label enforcement · per-workflow attribute_condition tightening once apply workflows ship |
 
 ## Architecture Decision Records
 
@@ -131,6 +132,8 @@ make onboard-tenant TENANT=acme ENV=dev
 | [0002](docs/adr/0002-argocd-app-of-apps.md) | Argo CD app-of-apps for delivery | Accepted |
 | [0003](docs/adr/0003-sentinel-opa-defence-in-depth.md) | Sentinel + OPA in defence-in-depth | Accepted |
 | [0004](docs/adr/0004-workload-identity-federation-for-cicd.md) | Workload Identity Federation for CI/CD | Accepted |
+| [0005](docs/adr/0005-external-secrets-for-tenant-secrets.md) | External Secrets Operator for tenant secrets | Accepted |
+| [0006](docs/adr/0006-per-stack-terraform-identities.md) | Per-stack Terraform identities | Accepted |
 
 ADRs document the **trade-offs**, not the implementation. Read them first.
 

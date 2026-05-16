@@ -46,7 +46,7 @@ The OIDC claims that get carried through to Cloud Audit Logs include `actor`, `r
 ### Negative
 
 - **Pool/provider lives in *one* project.** Compromise of the project's IAM admin role can broaden the trust on the pool. Mitigated by: pinning project IAM admin to a small group, alerting on changes to the pool/provider via Cloud Audit Logs (filter on `iam.googleapis.com/WorkloadIdentityPool*` resource types).
-- **The SA has broad project-level roles by default.** Splitting per-stack (separate SAs for `terraform-bootstrap`, `terraform-cluster`, `terraform-platform`) is the prod move; the trial uses a single SA for simplicity. Documented as a v2.0 follow-up.
+- **~~The SA has broad project-level roles by default.~~** Resolved in v1.5 by splitting per-stack (`terraform-bootstrap`, `terraform-cluster`, `terraform-platform`, `terraform-tenants`) — see [ADR-0006](0006-per-stack-terraform-identities.md). The single apply SA pattern was retired with that change.
 - **GitHub-hosted runners can't reach the private cluster.** The `environments/dev-platform` and `environments/dev-tenants` stacks need a self-hosted runner inside the VPC. The bastion is the natural home. Adds an operational moving part: the runner registration.
 - **Branch allowlist is binary.** Either a branch is allowed to mint a token or it isn't. PR-time *plan* workflows on feature branches need a separate read-only credential surface (different SA, different attribute_condition) — added in a follow-up PR.
 

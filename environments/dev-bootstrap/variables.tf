@@ -46,9 +46,16 @@ variable "master_ipv4_cidr_block" {
 }
 
 variable "bastion_machine_type" {
-  description = "Bastion VM size. e2-small is plenty for an SSH jump host."
+  description = "Bastion VM size. e2-small is plenty for an SSH jump host; bump to e2-medium when also running the GitHub Actions self-hosted runner."
   type        = string
   default     = "e2-small"
+}
+
+variable "github_runner_token" {
+  description = "GitHub Actions self-hosted runner registration token. Short-lived (1 hour). Generate via `gh api -X POST /repos/<owner>/<repo>/actions/runners/registration-token --jq .token`. Leave empty to skip runner registration entirely — the bastion still functions as a human SSH jump host. Required when you want the terraform-plan workflow's private-cluster matrix entries (dev-platform, dev-tenants) to run."
+  type        = string
+  default     = ""
+  sensitive   = true
 }
 
 variable "labels" {
@@ -108,5 +115,110 @@ variable "github_actions_plan_roles" {
     "roles/binaryauthorization.policyViewer",
     # Workload Identity Federation pool / provider state
     "roles/iam.workloadIdentityPoolViewer",
+  ]
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Per-stack APPLY role surfaces.
+#
+# Each apply SA holds only the roles its own stack needs. Splitting like this
+# bounds blast radius: a compromise of the terraform-platform workflow
+# cannot recreate the project, rotate KMS, or destroy the cluster. ADR-0005
+# documents the rationale.
+#
+# These defaults are tuned for the trial topology; production deployments
+# should still review each list against the actual resources their stack
+# manages.
+# ─────────────────────────────────────────────────────────────────────────────
+
+variable "github_actions_bootstrap_roles" {
+  description = "Roles for the terraform-bootstrap APPLY SA. Owns project + IAM admin, KMS, networking, state bucket, bastion. Highest-privilege SA, lowest-frequency change."
+  type        = list(string)
+  default = [
+    # Project & service usage
+    "roles/resourcemanager.projectIamAdmin",
+    "roles/serviceusage.serviceUsageAdmin",
+
+    # IAM administration (creates all downstream SAs, manages bindings)
+    "roles/iam.serviceAccountAdmin",
+    "roles/iam.serviceAccountUser",
+    "roles/iam.workloadIdentityPoolAdmin",
+
+    # Networking (VPC, subnets, Cloud NAT, firewall, bastion)
+    "roles/compute.networkAdmin",
+    "roles/compute.securityAdmin",
+    "roles/compute.instanceAdmin.v1",
+
+    # Bastion IAP grant
+    "roles/iap.admin",
+
+    # Storage (creates the state bucket)
+    "roles/storage.admin",
+
+    # KMS — key + ring + binding admin (NOT raw encrypt/decrypt; that's
+    # for service agents). Bootstrap owns the keys; cluster only consumes.
+    "roles/cloudkms.admin",
+
+    # Logging / monitoring sink admin
+    "roles/logging.admin",
+    "roles/monitoring.admin",
+  ]
+}
+
+variable "github_actions_cluster_roles" {
+  description = "Roles for the terraform-cluster APPLY SA. Manages the GKE cluster + node pools + Binary Authorization + Backup for GKE. No project IAM admin, no KMS admin, no network mutation."
+  type        = list(string)
+  default = [
+    # State bucket read+write for this stack's state object only (bucket
+    # IAM is bootstrap's job). objectAdmin is the narrowest workable role
+    # because terraform needs read + write + delete + version listing.
+    "roles/storage.objectAdmin",
+
+    # Cluster + node-pool lifecycle
+    "roles/container.admin",
+    "roles/gkebackup.admin",
+    "roles/binaryauthorization.policyAdmin",
+
+    # Network read (needs subnet + secondary-range refs but never mutates)
+    "roles/compute.networkViewer",
+
+    # Service account user — so the GKE node SA can be attached to node pools
+    "roles/iam.serviceAccountUser",
+
+    # KMS — encrypt/decrypt only (NOT key admin). Required so the cluster
+    # can wrap etcd + boot-disk + backup material with the bootstrap-owned keys.
+    "roles/cloudkms.cryptoKeyEncrypterDecrypter",
+  ]
+}
+
+variable "github_actions_platform_roles" {
+  description = "Roles for the terraform-platform APPLY SA. Installs Argo CD into the cluster via Helm. Cluster-scoped operations only — no project mutation. The Kubernetes-side privilege is whatever cluster-admin RBAC the kubeconfig binds; this role list only covers reaching the cluster API."
+  type        = list(string)
+  default = [
+    # State bucket
+    "roles/storage.objectAdmin",
+
+    # Reach the cluster API (gets a kubeconfig; no mutation of the cluster
+    # object itself — container.developer is the K8s-API-only surface)
+    "roles/container.developer",
+
+    # OIDC / impersonation user for downstream auth steps
+    "roles/iam.serviceAccountTokenCreator",
+  ]
+}
+
+variable "github_actions_tenants_roles" {
+  description = "Roles for the terraform-tenants APPLY SA. Creates per-tenant namespaces, quotas, network policies, and binds tenant KSAs to their GSAs. Same K8s-API-only surface as platform plus the SA-user role for KSA→GSA Workload Identity bindings."
+  type        = list(string)
+  default = [
+    # State bucket
+    "roles/storage.objectAdmin",
+
+    # Reach the cluster API
+    "roles/container.developer",
+
+    # Bind tenant KSAs to tenant GSAs (per-namespace WI annotations)
+    "roles/iam.serviceAccountUser",
+    "roles/iam.serviceAccountTokenCreator",
   ]
 }

@@ -37,6 +37,25 @@ locals {
   }
 
   labels = merge(local.base_labels, var.extra_labels)
+
+  # Allowed GSAs default to the tenant's own GSA (when bound). Override
+  # via var.allowed_gsa for multi-GSA tenants.
+  allowed_gsa = (
+    var.allowed_gsa != null ? var.allowed_gsa
+    : (var.gcp_service_account_email != null ? var.gcp_service_account_email : "")
+  )
+
+  # Annotations split: the policy-enforced ones are always present (even
+  # when empty) so the matching Gatekeeper rules have a deterministic
+  # value to evaluate against — fail-closed on missing prefix.
+  base_annotations = {
+    "platform.idp/tier"                           = var.tier
+    "platform.idp/owner"                          = var.tenant
+    "platform.idp/created-by"                     = "modules/tenant-namespace"
+    "platform.idp/secret-prefix"                  = var.secret_prefix
+    "platform.idp/allowed-gsa"                    = local.allowed_gsa
+    "scheduler.alpha.kubernetes.io/node-selector" = "tier=${var.tier}"
+  }
 }
 
 ###############################################################################
@@ -45,15 +64,9 @@ locals {
 
 resource "kubernetes_namespace_v1" "this" {
   metadata {
-    name   = var.tenant
-    labels = local.labels
-
-    annotations = {
-      "platform.idp/tier"                           = var.tier
-      "platform.idp/owner"                          = var.tenant
-      "platform.idp/created-by"                     = "modules/tenant-namespace"
-      "scheduler.alpha.kubernetes.io/node-selector" = "tier=${var.tier}"
-    }
+    name        = var.tenant
+    labels      = local.labels
+    annotations = local.base_annotations
   }
 }
 

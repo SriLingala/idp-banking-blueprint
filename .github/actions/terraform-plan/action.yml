@@ -1,0 +1,199 @@
+name: terraform plan (composite)
+description: |
+  Auth via the read-only plan WIF identity, terraform init + plan, upload
+  the binary tfplan as an artifact, and post a single per-stack comment on
+  the PR. Used by both the public (ubuntu-latest) and private (bastion
+  self-hosted runner) matrix jobs in terraform-plan.yml.
+
+inputs:
+  stack:
+    description: Path to the terraform stack (e.g. environments/dev).
+    required: true
+  wif_provider:
+    description: workload_identity_pool_provider resource path.
+    required: true
+  service_account:
+    description: Read-only plan service account email.
+    required: true
+  project_id:
+    description: GCP project ID.
+    required: true
+  region:
+    description: GCP region.
+    required: true
+  state_bucket:
+    description: GCS bucket holding terraform state.
+    required: true
+  pr_number:
+    description: Pull request number (used in artifact names + comment markers).
+    required: true
+  head_sha:
+    description: Head SHA of the PR (used in comment metadata).
+    required: true
+  actor:
+    description: GitHub actor that opened/updated the PR.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Authenticate to GCP via WIF (plan identity, read-only)
+      id: auth
+      uses: google-github-actions/auth@v2
+      with:
+        workload_identity_provider: ${{ inputs.wif_provider }}
+        service_account: ${{ inputs.service_account }}
+        # Short-lived access token — extra defence against credential reuse.
+        token_format: access_token
+        access_token_lifetime: 1200s
+
+    - uses: hashicorp/setup-terraform@v3
+      with:
+        terraform_version: 1.9.5
+
+    # The bootstrap stack uses LOCAL state (chicken-and-egg — it creates
+    # the bucket). Every other stack consumes the bucket as a backend.
+    - name: terraform init
+      shell: bash
+      working-directory: ${{ inputs.stack }}
+      run: |
+        if [ "${{ inputs.stack }}" = "environments/dev-bootstrap" ]; then
+          terraform init -no-color -backend=false
+        else
+          terraform init -no-color -reconfigure \
+            -backend-config="bucket=${{ inputs.state_bucket }}"
+        fi
+
+    - name: terraform plan
+      id: plan
+      shell: bash
+      working-directory: ${{ inputs.stack }}
+      env:
+        GOOGLE_PROJECT: ${{ inputs.project_id }}
+        GOOGLE_REGION: ${{ inputs.region }}
+        TF_VAR_project_id: ${{ inputs.project_id }}
+        TF_VAR_region: ${{ inputs.region }}
+      run: |
+        set -o pipefail
+        terraform plan \
+          -no-color \
+          -lock=false \
+          -input=false \
+          -detailed-exitcode \
+          -out=tfplan \
+          2>&1 | tee plan.txt
+        # detailed-exitcode: 0 = no changes, 2 = changes present.
+        echo "exit_code=$?" >> "$GITHUB_OUTPUT"
+
+    - name: Summarise plan
+      id: summarise
+      if: always()
+      shell: bash
+      working-directory: ${{ inputs.stack }}
+      run: |
+        summary=$(grep -E '^Plan: ' plan.txt | tail -1 || true)
+        if [ -z "$summary" ]; then
+          if grep -q 'No changes' plan.txt; then
+            summary="Plan: 0 to add, 0 to change, 0 to destroy."
+          else
+            summary="Plan: (no summary — check details)"
+          fi
+        fi
+        echo "summary=$summary" >> "$GITHUB_OUTPUT"
+
+    - name: Upload tfplan artifact
+      if: success() || steps.plan.outcome == 'success'
+      uses: actions/upload-artifact@v4
+      with:
+        # Artifact name encodes the PR number AND the stack — so the
+        # apply workflow can fetch the exact plan that was reviewed for
+        # THIS PR, not a re-plan from main.
+        name: tfplan-pr${{ inputs.pr_number }}-${{ inputs.stack }}
+        path: ${{ inputs.stack }}/tfplan
+        if-no-files-found: warn
+        retention-days: 14
+
+    - name: Post plan summary to PR
+      if: always()
+      uses: actions/github-script@v7
+      env:
+        STACK: ${{ inputs.stack }}
+        EXIT_CODE: ${{ steps.plan.outputs.exit_code }}
+        SUMMARY: ${{ steps.summarise.outputs.summary }}
+        OUTCOME: ${{ steps.plan.outcome }}
+        PR_NUMBER: ${{ inputs.pr_number }}
+        HEAD_SHA: ${{ inputs.head_sha }}
+        ACTOR: ${{ inputs.actor }}
+      with:
+        script: |
+          const fs = require('fs');
+          const path = require('path');
+
+          const stack = process.env.STACK;
+          const exitCode = process.env.EXIT_CODE || 'unknown';
+          const summary = process.env.SUMMARY || '(no summary captured)';
+          const outcome = process.env.OUTCOME;
+
+          // Read up to 50 KiB of plan output — large plans get truncated.
+          const planPath = path.join(stack, 'plan.txt');
+          let planText = '(plan output not captured)';
+          if (fs.existsSync(planPath)) {
+            const raw = fs.readFileSync(planPath, 'utf-8');
+            const limit = 50_000;
+            planText = raw.length > limit
+              ? raw.slice(-limit) + '\n\n[truncated — see workflow log]'
+              : raw;
+          }
+
+          const icon = outcome === 'success'
+            ? (exitCode === '0' ? '✅' : '🟡')   // 0 = no changes, 2 = changes
+            : '❌';
+
+          const body = `<!-- terraform-plan:${stack} -->
+          ${icon} **\`${stack}\`** — ${summary}
+
+          <details>
+          <summary>Plan output (last 50 KiB)</summary>
+
+          \`\`\`hcl
+          ${planText.replace(/```/g, '`​``')}
+          \`\`\`
+          </details>
+
+          *Plan run on \`${process.env.HEAD_SHA}\` by \`@${process.env.ACTOR}\` via the read-only \`terraform-plan\` SA. Artifact: \`tfplan-pr${process.env.PR_NUMBER}-${stack}\`.*`;
+
+          // Find an existing comment for THIS stack (we key on the HTML
+          // comment marker) and update it; otherwise create a new one.
+          const { data: comments } = await github.rest.issues.listComments({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            issue_number: context.issue.number,
+          });
+
+          const marker = `<!-- terraform-plan:${stack} -->`;
+          const existing = comments.find(c =>
+            c.user && c.user.type === 'Bot' && (c.body || '').includes(marker)
+          );
+
+          if (existing) {
+            await github.rest.issues.updateComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              comment_id: existing.id,
+              body,
+            });
+          } else {
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body,
+            });
+          }
+
+    - name: Fail step on plan error
+      if: steps.plan.outcome == 'failure'
+      shell: bash
+      run: |
+        echo "::error::Terraform plan failed for ${{ inputs.stack }} — see job log."
+        exit 1

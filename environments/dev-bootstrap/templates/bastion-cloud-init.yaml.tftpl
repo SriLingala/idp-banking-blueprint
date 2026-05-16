@@ -1,0 +1,88 @@
+#cloud-config
+package_update: true
+package_upgrade: false
+
+users:
+  - name: gha-runner
+    system: false
+    shell: /bin/bash
+    sudo: false
+    home: /home/gha-runner
+
+write_files:
+  - path: /usr/local/bin/register-gha-runner.sh
+    permissions: "0750"
+    owner: root:root
+    content: |
+      #!/usr/bin/env bash
+      # Idempotent self-hosted runner registration on the bastion.
+      # Skips cleanly if no token was supplied at terraform-apply time —
+      # the bastion still works as a human SSH jump host without it.
+      set -euo pipefail
+
+      RUNNER_TOKEN='${runner_token}'
+      if [ -z "$RUNNER_TOKEN" ]; then
+        echo "register-gha-runner: no token supplied, skipping registration." | logger -t gha-runner
+        exit 0
+      fi
+
+      RUNNER_DIR=/home/gha-runner/actions-runner
+      RUNNER_VERSION='${runner_version}'
+      REPO_URL='https://github.com/${github_owner}/${github_repository}'
+
+      # Re-run safe: if config.sh has already been completed, the
+      # second `./config.sh` invocation refuses without --replace, so we
+      # skip when the runner is already registered.
+      if [ -f "$RUNNER_DIR/.runner" ]; then
+        echo "register-gha-runner: runner already registered." | logger -t gha-runner
+        exit 0
+      fi
+
+      install -d -o gha-runner -g gha-runner "$RUNNER_DIR"
+      cd "$RUNNER_DIR"
+
+      ARCH=$(dpkg --print-architecture)
+      case "$ARCH" in
+        amd64) RUNNER_ARCH=x64 ;;
+        arm64) RUNNER_ARCH=arm64 ;;
+        *) echo "register-gha-runner: unsupported arch $ARCH" | logger -t gha-runner; exit 1 ;;
+      esac
+
+      TARBALL="actions-runner-linux-$${RUNNER_ARCH}-$${RUNNER_VERSION}.tar.gz"
+      curl -fsSL -o "$TARBALL" \
+        "https://github.com/actions/runner/releases/download/v$${RUNNER_VERSION}/$${TARBALL}"
+      tar xzf "$TARBALL"
+      rm -f "$TARBALL"
+      chown -R gha-runner:gha-runner "$RUNNER_DIR"
+
+      sudo -u gha-runner ./config.sh \
+        --url "$REPO_URL" \
+        --token "$RUNNER_TOKEN" \
+        --name "bastion-$(hostname -s)" \
+        --labels "bastion,private-cluster" \
+        --unattended \
+        --replace \
+        --disableupdate
+
+      ./svc.sh install gha-runner
+      ./svc.sh start
+
+      echo "register-gha-runner: registered + started." | logger -t gha-runner
+
+runcmd:
+  # gcloud + kubectl for human operators using the bastion as a jump host
+  - apt-get update
+  - apt-get install -y apt-transport-https ca-certificates gnupg curl jq
+  - curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | gpg --dearmor -o /usr/share/keyrings/cloud.google.gpg
+  - echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" > /etc/apt/sources.list.d/google-cloud-sdk.list
+  - apt-get update
+  - apt-get install -y google-cloud-cli google-cloud-cli-gke-gcloud-auth-plugin kubectl
+
+  # terraform for plans that run on the bastion via the self-hosted runner
+  - curl -fsSL https://apt.releases.hashicorp.com/gpg | gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
+  - echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(. /etc/os-release && echo $VERSION_CODENAME) main" > /etc/apt/sources.list.d/hashicorp.list
+  - apt-get update
+  - apt-get install -y terraform
+
+  # Self-hosted runner registration (no-op if runner_token is empty)
+  - /usr/local/bin/register-gha-runner.sh

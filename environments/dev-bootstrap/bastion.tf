@@ -70,19 +70,25 @@ resource "google_compute_instance" "bastion" {
     # Block project-wide SSH keys; only OS-Login (via IAP) is allowed.
     block-project-ssh-keys = "TRUE"
     enable-oslogin         = "TRUE"
-    # Cloud-init script installs gcloud + kubectl on first boot.
-    user-data = <<-EOT
-      #cloud-config
-      package_update: true
-      package_upgrade: false
-      runcmd:
-        - apt-get update
-        - apt-get install -y apt-transport-https ca-certificates gnupg curl
-        - curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | gpg --dearmor -o /usr/share/keyrings/cloud.google.gpg
-        - echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" > /etc/apt/sources.list.d/google-cloud-sdk.list
-        - apt-get update
-        - apt-get install -y google-cloud-cli google-cloud-cli-gke-gcloud-auth-plugin kubectl
-    EOT
+    # Cloud-init installs gcloud + kubectl + terraform, and (when a
+    # registration token is provided) registers a GitHub Actions
+    # self-hosted runner labelled `bastion` so the terraform-plan workflow
+    # can reach the private cluster API for environments/dev-platform and
+    # environments/dev-tenants.
+    #
+    # The runner token is short-lived (1 hour). Generate it with:
+    #   gh api -X POST /repos/<owner>/<repo>/actions/runners/registration-token \
+    #     --jq .token
+    # Pass it to terraform once via -var=github_runner_token=...; the
+    # bastion picks it up on next boot. Leaving the variable empty skips
+    # runner registration entirely — the bastion still functions as a
+    # human SSH jump host without it.
+    user-data = templatefile("${path.module}/templates/bastion-cloud-init.yaml.tftpl", {
+      github_owner      = var.github_owner
+      github_repository = var.github_repository
+      runner_token      = var.github_runner_token
+      runner_version    = "2.319.1"
+    })
   }
 
   labels = var.labels
