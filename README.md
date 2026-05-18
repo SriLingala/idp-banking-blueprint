@@ -98,7 +98,7 @@ cp terraform.tfvars.example terraform.tfvars
 make plan ENV=dev
 make apply ENV=dev
 
-# 4. Onboard a tenant team (once v0.3 lands)
+# 4. Onboard a tenant team
 make onboard-tenant TENANT=acme ENV=dev
 ```
 
@@ -122,7 +122,7 @@ make onboard-tenant TENANT=acme ENV=dev
 | v1.3 | **Released** | `environments/dev-tenants` — per-tenant compositions calling `modules/tenant-namespace` · [trial walkthrough](docs/runbooks/trial-walkthrough.md) with end-to-end reconciliation Common Gotchas table covering every wart the trial uncovered |
 | v1.4 | **Released** | Automated `terraform plan` via GitHub Actions + Workload Identity Federation · `modules/github-oidc-wif` · ADR-0004 · read-only plan SA distinct from apply SA |
 | v1.5 | **Released** | Per-stack apply identities (`terraform-bootstrap` / `cluster` / `platform` / `tenants`) replacing the single `terraform-actions` SA · ADR-0006 · External Secrets Operator for tenant secrets via Workload Identity · `K8sExternalSecretScope` Gatekeeper constraint enforcing per-tenant Secret Manager prefixes · ADR-0005 · self-hosted GitHub Actions runner on the bastion so `terraform-plan` covers the private-cluster stacks (dev-platform, dev-tenants) |
-| v2.0 | **Planned** | CODEOWNERS · production-shaped example environment · cost/SLO/DR documentation refresh · KMS key rotation automation · data-classification label enforcement · per-workflow attribute_condition tightening once apply workflows ship |
+| v2.0 | **Planned** | Production hardening refresh · KMS key rotation automation · data-classification label enforcement · per-workflow attribute_condition tightening once apply workflows ship |
 
 ## Architecture Decision Records
 
