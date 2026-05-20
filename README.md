@@ -5,7 +5,6 @@
 
 [![Terraform Validate](https://github.com/SriLingala/idp-banking-blueprint/actions/workflows/terraform-validate.yml/badge.svg)](https://github.com/SriLingala/idp-banking-blueprint/actions/workflows/terraform-validate.yml)
 [![TFLint](https://github.com/SriLingala/idp-banking-blueprint/actions/workflows/tflint.yml/badge.svg)](https://github.com/SriLingala/idp-banking-blueprint/actions/workflows/tflint.yml)
-[![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 
 ---
 
@@ -147,7 +146,3 @@ This is primarily a personal reference, but pull requests that improve clarity, 
 [LinkedIn](https://www.linkedin.com/in/itsmesri) · [Portfolio](https://www.srilingala.dev/) · [GitHub](https://github.com/SriLingala)
 
 CKA · HashiCorp Terraform Associate · GCP Associate Cloud Engineer · Harness CD Certified
-
-## License
-
-Apache 2.0. See [LICENSE](LICENSE).
